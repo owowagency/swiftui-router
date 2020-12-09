@@ -15,13 +15,13 @@ public struct SimpleRoute<State, Body, EnvironmentObjectDependency>: Route where
     }
     
     @inlinable
-    public init(prepareState: @escaping () -> State, body: @escaping (State) -> Body) where EnvironmentObjectDependency == VoidEnvironmentObject {
+    public init(prepareState: @escaping () -> State, body: @escaping (State) -> Body) where EnvironmentObjectDependency == VoidObservableObject {
         _prepareState = { _ in prepareState() }
         _body = body
     }
     
     @inlinable
-    public init(body: @escaping () -> Body) where State == Void, EnvironmentObjectDependency == VoidEnvironmentObject {
+    public init(body: @escaping () -> Body) where State == Void, EnvironmentObjectDependency == VoidObservableObject {
         _prepareState = { _ in () }
         _body = { _ in body() }
     }
@@ -36,6 +36,3 @@ public struct SimpleRoute<State, Body, EnvironmentObjectDependency>: Route where
         _body(state)
     }
 }
-
-@available(iOS 13, *)
-public class VoidEnvironmentObject: ObservableObject {}
