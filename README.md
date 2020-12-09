@@ -62,6 +62,38 @@ extension Routes {
 
 The `prepareState` closure runs once when navigating to the route. Afterwards, the return value is used to render the view.
 
+### Parameterized and custom routes
+
+Some routes might need parameters to show correctly. To accept parameters, you can implement a custom route type. Let's expand on the name editing example above – say you want to pass a default name as route argument.
+
+A custom route implementation might look like this:
+
+```swift
+struct EditNameRoute: IndependentRoute {
+  var name: String
+      
+  func prepareState() -> EditNameViewModel {
+    EditNameViewModel(name: emailAddress)
+  }
+      
+  func body(state: EditNameViewModel) -> some View {
+    EditNameView(viewModel: state)
+  }
+}
+```
+
+Afterwards, you can add it as extension to your `Routes`:
+
+```swift
+extension Routes {
+  static func editName(name: String) -> EditNameRoute {
+    EditNameRoute(name: name)
+  }
+}
+```
+
+*Note that `IndependentRoute` is a specialized version of `Route` that doesn't depend on an environment object to prepare it's state.*
+
 ### Routers
 
-Before you are able to use your defined routes, you need to initialise a router. Because `Router` is a protocol, multiple implementations (including your own) are possible. SwiftUI Router provides the `UINavigationControllerRouter` implementation, which you can use 
+Before you are able to use your defined routes, you need to initialise a router. Because `Router` is a protocol, multiple implementations (including your own) are possible. SwiftUI Router provides the `UINavigationControllerRouter` implementation.
