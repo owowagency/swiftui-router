@@ -1,6 +1,6 @@
 import SwiftUI
 
-@available(iOS 13, *)
+@available(iOS 13, macOS 10.15, *)
 public struct SimpleRoute<State, Body, EnvironmentObjectDependency>: Route where Body: View, EnvironmentObjectDependency: ObservableObject {
     @usableFromInline
     var _prepareState: (EnvironmentObjectDependency) -> State
