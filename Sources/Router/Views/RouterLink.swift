@@ -4,7 +4,6 @@ import SwiftUI
 @available(iOS 13, *)
 public struct RouterLink<Label: View, Target: Route>: View {
     @Environment(\.router) private var router
-    @Environment(\.self) private var environment
     @EnvironmentObject private var dependency: Target.EnvironmentObjectDependency
     
     @usableFromInline
@@ -28,6 +27,6 @@ public struct RouterLink<Label: View, Target: Route>: View {
             preconditionFailure("RouterLink needs to be used in a router context")
         }
         
-        router.navigate(to: target, environment: self.environment, environmentObject: dependency)
+        router.navigate(to: target, dependency)
     }
 }

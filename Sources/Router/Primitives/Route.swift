@@ -7,7 +7,7 @@ public protocol Route {
     associatedtype EnvironmentObjectDependency: ObservableObject
     
     /// Runs once when navigating to a route.
-    func prepareState(environment: EnvironmentValues, environmentObject: EnvironmentObjectDependency) -> State
+    func prepareState(environmentObject: EnvironmentObjectDependency) -> State
     func body(state: State) -> Body
 }
 

@@ -3,32 +3,32 @@ import SwiftUI
 @available(iOS 13, *)
 public struct SimpleRoute<State, Body, EnvironmentObjectDependency>: Route where Body: View, EnvironmentObjectDependency: ObservableObject {
     @usableFromInline
-    var _prepareState: (EnvironmentValues, EnvironmentObjectDependency) -> State
+    var _prepareState: (EnvironmentObjectDependency) -> State
     
     @usableFromInline
     var _body: (State) -> Body
     
     @inlinable
-    public init(dependency: EnvironmentObjectDependency.Type, prepareState: @escaping (EnvironmentValues, EnvironmentObjectDependency) -> State, body: @escaping (State) -> Body) {
+    public init(dependency: EnvironmentObjectDependency.Type = EnvironmentObjectDependency.self, prepareState: @escaping (EnvironmentObjectDependency) -> State, body: @escaping (State) -> Body) {
         _prepareState = prepareState
         _body = body
     }
     
     @inlinable
-    public init(prepareState: @escaping (EnvironmentValues) -> State, body: @escaping (State) -> Body) where EnvironmentObjectDependency == VoidEnvironmentObject {
-        _prepareState = { values, _ in prepareState(values) }
+    public init(prepareState: @escaping () -> State, body: @escaping (State) -> Body) where EnvironmentObjectDependency == VoidEnvironmentObject {
+        _prepareState = { _ in prepareState() }
         _body = body
     }
     
     @inlinable
     public init(body: @escaping () -> Body) where State == Void, EnvironmentObjectDependency == VoidEnvironmentObject {
-        _prepareState = { _, _ in () }
+        _prepareState = { _ in () }
         _body = { _ in body() }
     }
     
     @inlinable
-    public func prepareState(environment: EnvironmentValues, environmentObject: EnvironmentObjectDependency) -> State {
-        _prepareState(environment, environmentObject)
+    public func prepareState(environmentObject: EnvironmentObjectDependency) -> State {
+        _prepareState(environmentObject)
     }
     
     @inlinable
