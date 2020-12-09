@@ -5,6 +5,7 @@ import SwiftUI
 public struct RouterLink<Label: View, Target: Route>: View {
     @Environment(\.router) private var router
     @Environment(\.self) private var environment
+    @EnvironmentObject private var dependency: Target.EnvironmentObjectDependency
     
     @usableFromInline
     var target: Target
@@ -13,8 +14,8 @@ public struct RouterLink<Label: View, Target: Route>: View {
     var label: Label
     
     @inlinable
-    public init(to destination: Destination<Target>, @ViewBuilder label: () -> Label) {
-        self.target = destination.route
+    public init(to destination: Target, @ViewBuilder label: () -> Label) {
+        self.target = destination
         self.label = label()
     }
     
@@ -27,6 +28,6 @@ public struct RouterLink<Label: View, Target: Route>: View {
             preconditionFailure("RouterLink needs to be used in a router context")
         }
         
-        router.navigate(to: target, environment: self.environment)
+        router.navigate(to: target, environment: self.environment, environmentObject: dependency)
     }
 }

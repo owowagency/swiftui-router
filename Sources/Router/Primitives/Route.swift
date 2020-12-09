@@ -4,9 +4,10 @@ import SwiftUI
 public protocol Route {
     associatedtype State
     associatedtype Body: View
+    associatedtype EnvironmentObjectDependency: ObservableObject
     
     /// Runs once when navigating to a route.
-    func prepareState(environment: EnvironmentValues) -> State
+    func prepareState(environment: EnvironmentValues, environmentObject: EnvironmentObjectDependency) -> State
     func body(state: State) -> Body
 }
 

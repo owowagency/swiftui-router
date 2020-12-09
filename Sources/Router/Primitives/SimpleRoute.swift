@@ -1,28 +1,34 @@
 import SwiftUI
 
 @available(iOS 13, *)
-public struct SimpleRoute<State, Body>: Route where Body: View {
+public struct SimpleRoute<State, Body, EnvironmentObjectDependency>: Route where Body: View, EnvironmentObjectDependency: ObservableObject {
     @usableFromInline
-    var _prepareState: (EnvironmentValues) -> State
+    var _prepareState: (EnvironmentValues, EnvironmentObjectDependency) -> State
     
     @usableFromInline
     var _body: (State) -> Body
     
     @inlinable
-    public init(prepareState: @escaping (EnvironmentValues) -> State, body: @escaping (State) -> Body) {
+    public init(dependency: EnvironmentObjectDependency.Type, prepareState: @escaping (EnvironmentValues, EnvironmentObjectDependency) -> State, body: @escaping (State) -> Body) {
         _prepareState = prepareState
         _body = body
     }
     
     @inlinable
-    public init(body: @escaping () -> Body) where State == Void {
-        _prepareState = { _ in () }
+    public init(prepareState: @escaping (EnvironmentValues) -> State, body: @escaping (State) -> Body) where EnvironmentObjectDependency == VoidEnvironmentObject {
+        _prepareState = { values, _ in prepareState(values) }
+        _body = body
+    }
+    
+    @inlinable
+    public init(body: @escaping () -> Body) where State == Void, EnvironmentObjectDependency == VoidEnvironmentObject {
+        _prepareState = { _, _ in () }
         _body = { _ in body() }
     }
     
     @inlinable
-    public func prepareState(environment: EnvironmentValues) -> State {
-        _prepareState(environment)
+    public func prepareState(environment: EnvironmentValues, environmentObject: EnvironmentObjectDependency) -> State {
+        _prepareState(environment, environmentObject)
     }
     
     @inlinable
@@ -30,3 +36,6 @@ public struct SimpleRoute<State, Body>: Route where Body: View {
         _body(state)
     }
 }
+
+@available(iOS 13, *)
+public class VoidEnvironmentObject: ObservableObject {}
