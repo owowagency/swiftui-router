@@ -26,8 +26,6 @@ open class UINavigationControllerRouter: Router {
     // MARK: Root view replacement
     
     open func replaceRoot<Target: Route>(with target: Target, _ environmentObject: Target.EnvironmentObjectDependency) {
-        print("🚦 Replace root with \(target)")
-        
         let viewController = makeViewController(for: target, environmentObject: environmentObject)
         navigationController.viewControllers = [viewController]
     }
@@ -36,8 +34,6 @@ open class UINavigationControllerRouter: Router {
     
     /// - note: Not an implementation of the protocol requirement.
     open func navigate<Target: Route>(to target: Target, _ environmentObject: Target.EnvironmentObjectDependency) {
-        print("🚦 Navigate to \(target)")
-        
         let viewController = makeViewController(for: target, environmentObject: environmentObject)
         navigationController.pushViewController(viewController, animated: true)
     }
