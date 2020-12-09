@@ -2,13 +2,19 @@ import SwiftUI
 
 /// A view that controls routing to a given destination.
 @available(iOS 13, *)
-public struct RouterLink<Label: View>: View {
-    @EnvironmentObject private var router: Router
-    private var destination: AnyRoute
-    private var label: Label
+public struct RouterLink<Label: View, Target: Route>: View {
+    @Environment(\.router) private var router
+    @Environment(\.self) private var environment
     
-    public init(to destination: AnyRoute, @ViewBuilder label: () -> Label) {
-        self.destination = destination
+    @usableFromInline
+    var target: Target
+    
+    @usableFromInline
+    var label: Label
+    
+    @inlinable
+    public init(to destination: Destination<Target>, @ViewBuilder label: () -> Label) {
+        self.target = destination.route
         self.label = label()
     }
     
@@ -17,6 +23,10 @@ public struct RouterLink<Label: View>: View {
     }
     
     private func navigate() {
-        fatalError("TODO")
+        guard let router = router else {
+            preconditionFailure("RouterLink needs to be used in a router context")
+        }
+        
+        router.navigate(to: target, environment: self.environment)
     }
 }

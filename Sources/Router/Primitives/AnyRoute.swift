@@ -5,10 +5,10 @@ public struct AnyRoute: Route {
     public typealias State = Any
     public typealias Body = AnyView
     
-    private var _prepareState: () -> Any
+    private var _prepareState: (EnvironmentValues) -> Any
     private var _body: (Any) -> AnyView
     
-    init<Source: Route>(_ source: Source) {
+    public init<Source: Route>(_ source: Source) {
         _prepareState = source.prepareState
         _body = { anyState in
             guard let state = anyState as? Source.State else {
@@ -21,8 +21,8 @@ public struct AnyRoute: Route {
         }
     }
     
-    public func prepareState() -> Any {
-        _prepareState()
+    public func prepareState(environment: EnvironmentValues) -> Any {
+        _prepareState(environment)
     }
     
     public func body(state: Any) -> AnyView {
