@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import UIKit
 import SwiftUI
 
@@ -63,3 +64,4 @@ open class UINavigationControllerRouter: Router {
         return UIHostingController(rootView: rootView)
     }
 }
+#endif
