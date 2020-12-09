@@ -12,6 +12,10 @@ public struct RouterLink<Label: View, Target: Route>: View {
     @usableFromInline
     var label: Label
     
+    /// Creates an instance that navigates to `destination`.
+    /// - Parameters:
+    ///   - destination: The navigation target route.
+    ///   - label: A label describing the link.
     @inlinable
     public init(to destination: Target, @ViewBuilder label: () -> Label) {
         self.target = destination
