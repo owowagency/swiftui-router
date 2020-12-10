@@ -2,7 +2,7 @@
 import Foundation
 import SwiftUI
 
-@available(macOS 15, *)
+@available(macOS 10.15, *)
 public struct NSReplacementRouter: NSViewControllerRepresentable, Router {
     @State var controller = NSViewController()
     @State var view = NSView()
