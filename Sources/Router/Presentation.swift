@@ -31,8 +31,10 @@ public struct SheetPresentor<Parent: Route, Child: Route>: Presentor {
         let parentState = parent.prepareState(environmentObject: parentDependency)
         let childState = child.prepareState(environmentObject: childDependency)
         
+        let presented = State(initialValue: true)
+        
         return parent.body(state: parentState).sheet(
-            isPresented: .constant(true)
+            isPresented: presented.projectedValue
         ) {
             child.body(state: childState).environmentObject(childDependency)
         }.environmentObject(parentDependency)
