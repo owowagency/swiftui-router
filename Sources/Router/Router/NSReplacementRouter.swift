@@ -56,7 +56,7 @@ public struct NSReplacementRouter: NSViewControllerRepresentable, Router {
     }
     
     private func replace<Target: View>(with target: Target) {
-        let target = NSHostingController(rootView: target)
+        let target = NSHostingController(rootView: target.environment(\.router, self))
         controller.view.removeConstraints(controller.view.constraints)
         for subview in controller.view.subviews {
             subview.removeFromSuperview()
