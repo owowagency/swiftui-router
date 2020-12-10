@@ -45,7 +45,7 @@ public struct NSReplacementRouter: NSViewControllerRepresentable, Router {
         replace(with: view)
     }
     
-    public func replaceRoot<Target>(presentor: Target.Type, parent: Target.Parent, child: Target.Child) where Target : Presentor {
+    public func replaceRoot<Target>(with presentor: Target.Type, parent: Target.Parent, child: Target.Child) where Target : Presentor {
         let view = presentor.present(
             parent: parent,
             child: child,
