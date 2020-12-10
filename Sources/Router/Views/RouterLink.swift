@@ -28,6 +28,17 @@ public struct RouterLink<Label: View, P: Presentor>: View {
         self.label = label()
     }
     
+    @inlinable
+    public init<Target: Route, Sheet: Route>(
+        to destination: Target,
+        presentingSheet: Sheet,
+        @ViewBuilder label: () -> Label
+    ) where P == SheetPresentor<Target, Sheet> {
+        self.parent = destination
+        self.child = presentingSheet
+        self.label = label()
+    }
+    
     public var body: some View {
         Button(action: navigate) { label }
     }
