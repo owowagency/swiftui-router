@@ -6,6 +6,7 @@ import SwiftUI
 @available(iOS 13, *)
 open class UINavigationControllerRouter: Router {
     public let navigationController: UINavigationController
+    let dependenciesBag = ObjectDependenciesBag()
     
     /// 🌷
     /// - Parameter navigationController: The navigation controller to use for routing.
@@ -15,27 +16,35 @@ open class UINavigationControllerRouter: Router {
     
     public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root, _ environmentObject: Root.EnvironmentObjectDependency) where Root: Route {
         self.navigationController = navigationController
-        replaceRoot(with: root, environmentObject)
+        dependenciesBag.addObjectDependency(environmentObject)
+        replaceRoot(with: ParentPresentor.self, parent: root, child: VoidRoute())
     }
     
     public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root) where Root: Route, Root.EnvironmentObjectDependency == VoidObservableObject {
         self.navigationController = navigationController
-        replaceRoot(with: root)
+        replaceRoot(with: ParentPresentor.self, parent: root, child: VoidRoute())
     }
     
     // MARK: Root view replacement
     
-    open func replaceRoot<Target: Route>(with target: Target, _ environmentObject: Target.EnvironmentObjectDependency) {
-        let viewController = makeViewController(for: target, environmentObject: environmentObject)
-        navigationController.viewControllers = [viewController]
+    public func navigate<Target>(with presentor: Target.Type, parent: Target.Parent, child: Target.Child) where Target : Presentor {
+        let viewController = makeViewController(
+            presentor: presentor,
+            parent: parent,
+            child: child
+        )
+        
+        navigationController.pushViewController(viewController, animated: true)
     }
     
-    // MARK: Navigation
-    
-    /// - note: Not an implementation of the protocol requirement.
-    open func navigate<Target: Route>(to target: Target, _ environmentObject: Target.EnvironmentObjectDependency) {
-        let viewController = makeViewController(for: target, environmentObject: environmentObject)
-        navigationController.pushViewController(viewController, animated: true)
+    public func replaceRoot<Target>(with presentor: Target.Type, parent: Target.Parent, child: Target.Child) where Target : Presentor {
+        let viewController = makeViewController(
+            presentor: presentor,
+            parent: parent,
+            child: child
+        )
+        
+        navigationController.viewControllers = [viewController]
     }
     
     // MARK: Customisation points
@@ -43,14 +52,14 @@ open class UINavigationControllerRouter: Router {
     /// Generate the view controller (usually a hosting controller) for the given destination.
     /// - Parameter destination: A destination to route to.
     /// - Returns: A view controller for showing `destination`.
-    open func makeViewController<Target: Route>(for target: Target, environmentObject: Target.EnvironmentObjectDependency) -> UIViewController {
-        let state = target.prepareState(environmentObject: environmentObject)
-        
-        return makeHostingController(
-            rootView: target.body(state: state)
-                .environment(\.router, self)
-                .environmentObject(VoidObservableObject())
+    open func makeViewController<Target: Presentor>(presentor: Target.Type, parent: Target.Parent, child: Target.Child) -> UIViewController {
+        let view = presentor.present(
+            parent: parent,
+            child: child,
+            dependenciesBag: dependenciesBag
         )
+        
+        return makeHostingController(rootView: view)
     }
     
     /// Takes a `View` and creates a hosting controller for it.
