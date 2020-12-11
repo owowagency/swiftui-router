@@ -1,6 +1,7 @@
 #if canImport(UIKit)
 import UIKit
 import SwiftUI
+import Combine
 
 @available(iOS 13, macOS 10.15, *)
 final class RouteHost: Hashable {
@@ -62,6 +63,9 @@ open class UINavigationControllerRouter: Router {
     
     /// key: `ObjectIdentifier` of the `HostingController`
     private var routeHosts: [RouteViewIdentifier: RouteHost] = [:]
+    
+    /// 🗑 Combine cancellables.
+    private var cancellables = Set<AnyCancellable>()
     
     /// 🌷
     /// - Parameter navigationController: The navigation controller to use for routing.
@@ -142,21 +146,28 @@ open class UINavigationControllerRouter: Router {
             }
             
             let state = target.prepareState(environmentObject: environmentObject)
-            var isPresented = true
+            let presenterViewModel = PresenterViewModel()
+            
             let presentationContext = PresentationContext(
                 parent: host.root,
                 destination: AnyView(adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId)),
                 isPresented: Binding(
                     get: {
-                        isPresented
+                        presenterViewModel.isPresented
                     },
                     set: { newValue in
-                        isPresented = newValue
+                        presenterViewModel.isPresented = newValue
                     }
                 )
             ) { [unowned self] rootRoute, presentationContext in
-                self.makeChildRouterView(rootRoute: rootRoute, presentationContext: presentationContext)
+                self.makeChildRouterView(rootRoute: rootRoute, presentationContext: presentationContext, presenterViewModel: presenterViewModel)
             }
+            
+            presenterViewModel.$isPresented
+                .first { $0 == false }
+                .sink { [weak hostingController] _ in
+                    hostingController?.rootView = AnyView(presenter.body(with: presentationContext)) }
+                .store(in: &cancellables)
             
             hostingController.rootView = AnyView(presenter.body(with: presentationContext))
         }
@@ -168,7 +179,8 @@ open class UINavigationControllerRouter: Router {
         guard let hostingController = routeHosts[id]?.hostingController else {
             if let (parentRouter, presentationContext) = parentRouter {
                 presentationContext.isPresented = false
-                DispatchQueue.main.async {
+                #warning("When dismissing `self` as a child of `parentRouter`, make sure the current presenter is removed from the hierarchy by replacing the hierarchy with the routeHost.rootView")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     parentRouter.dismissUpTo(routeMatchesId: id)
                 }
                 return
@@ -185,6 +197,7 @@ open class UINavigationControllerRouter: Router {
         guard let hostingController = routeHosts[id]?.hostingController else {
             if let (parentRouter, presentationContext) = parentRouter {
                 presentationContext.isPresented = false
+                #warning("When dismissing `self` as a child of `parentRouter`, make sure the current presenter is removed from the hierarchy by replacing the hierarchy with the routeHost.rootView")
                 DispatchQueue.main.async {
                     parentRouter.dismissUpTo(routeMatchesId: id)
                 }
@@ -217,8 +230,18 @@ open class UINavigationControllerRouter: Router {
     /// - Returns: A view controller for showing `destination`.
     open func makeViewController<Target: Route, ThePresenter: Presenter>(for target: Target, environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, routeViewId: RouteViewIdentifier) -> UIHostingController<AnyView> {
         let state = target.prepareState(environmentObject: environmentObject)
-        let context = PresentationContext(parent: EmptyView(), destination: target.body(state: state), isPresented: isPresentedBinding(forRouteMatchingId: routeViewId)) { [unowned self] rootRoute, presentationContext in
-            self.makeChildRouterView(rootRoute: rootRoute, presentationContext: presentationContext)
+        let presenterViewModel = PresenterViewModel()
+        
+        let context = PresentationContext(
+            parent: EmptyView(),
+            destination: target.body(state: state),
+            isPresented: isPresentedBinding(forRouteMatchingId: routeViewId, presenterViewModel: presenterViewModel)
+        ) { [unowned self] rootRoute, presentationContext in
+            self.makeChildRouterView(
+                rootRoute: rootRoute,
+                presentationContext: presentationContext,
+                presenterViewModel: presenterViewModel
+            )
         }
         
         return makeHostingController(
@@ -255,16 +278,19 @@ open class UINavigationControllerRouter: Router {
         return routeHost
     }
     
-    open func makeChildRouterView<RootRoute: Route>(
+    
+    
+    func makeChildRouterView<RootRoute: Route>(
         rootRoute: RootRoute,
-        presentationContext: PresentationContext
+        presentationContext: PresentationContext,
+        presenterViewModel: PresenterViewModel
     ) -> AnyView where RootRoute.EnvironmentObjectDependency == VoidObservableObject {
         let router = UINavigationControllerRouter(
             root: rootRoute,
             VoidObservableObject(),
             parent: (self, presentationContext)
         )
-        return AnyView(UINavigationControllerRouterView(router: router))
+        return AnyView(PresenterView(wrappedView: UINavigationControllerRouterView(router: router), viewModel: presenterViewModel))
     }
     
     public func isPresenting(routeMatchingId id: RouteViewIdentifier) -> Bool {
@@ -275,7 +301,7 @@ open class UINavigationControllerRouter: Router {
         return navigationController.viewControllers.contains(viewController)
     }
     
-    private func isPresentedBinding(forRouteMatchingId id: RouteViewIdentifier) -> Binding<Bool> {
+    private func isPresentedBinding(forRouteMatchingId id: RouteViewIdentifier, presenterViewModel: PresenterViewModel) -> Binding<Bool> {
         Binding(
             get: { [weak self] in
                 self?.isPresenting(routeMatchingId: id) ?? false
@@ -286,6 +312,24 @@ open class UINavigationControllerRouter: Router {
                 }
             }
         )
+    }
+}
+
+@available(iOS 13, macOS 10.15, *)
+public final class PresenterViewModel: ObservableObject {
+    @Published internal var isPresented = true
+    
+    internal init() {}
+}
+
+@available(iOS 13, macOS 10.15, *)
+fileprivate struct PresenterView<WrappedView: View>: View {
+    let wrappedView: WrappedView
+    @ObservedObject var viewModel: PresenterViewModel
+    
+    var body: some View {
+        // Make sure SwiftUI registers the EnvironmentObject dependency for observation
+        wrappedView.id(viewModel.isPresented)
     }
 }
 #endif
