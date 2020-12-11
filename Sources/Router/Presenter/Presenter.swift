@@ -12,39 +12,42 @@ public protocol Presenter {
 public struct PresentationContext {
     private var _parent: AnyView
     private var _destination: AnyView
-    private var _makeRouter: (AnyView) -> AnyView
+    private var _makeRouter: (AnyView, PresentationContext) -> AnyView
     
-    public typealias RouterViewFactory = (SimpleRoute<Void, AnyView, VoidObservableObject>) -> AnyView
+    public typealias RouterViewFactory = (SimpleRoute<Void, AnyView, VoidObservableObject>, PresentationContext) -> AnyView
     
-    public init<Parent: View, Destination: View>(parent: Parent, destination: Destination, makeRouter: @escaping RouterViewFactory) {
+    public init<Parent: View, Destination: View>(parent: Parent, destination: Destination, isPresented: Binding<Bool>, makeRouter: @escaping RouterViewFactory) {
         self._parent = AnyView(parent)
         self._destination = AnyView(destination)
-        _makeRouter = { wrappedView in
+        self._isPresented = isPresented
+        _makeRouter = { wrappedView, `self` in
             let route = SimpleRoute {
                 AnyView(wrappedView)
             }
             
-            return makeRouter(route)
+            return makeRouter(route, self)
         }
     }
     
-    init(parent: AnyView, destination: AnyView, makeRouter: @escaping RouterViewFactory) {
+    init(parent: AnyView, destination: AnyView, isPresented: Binding<Bool>, makeRouter: @escaping RouterViewFactory) {
         self._parent = parent
         self._destination = destination
-        _makeRouter = { wrappedView in
+        self._isPresented = isPresented
+        _makeRouter = { wrappedView, `self` in
             let route = SimpleRoute {
                 AnyView(wrappedView)
             }
             
-            return makeRouter(route)
+            return makeRouter(route, self)
         }
     }
     
     public var parent: some View { _parent }
     public var destination: some View { _destination }
+    @Binding public var isPresented: Bool
     
     public func makeRouter<NestedView: View>(wrapping route: NestedView) -> some View {
-        _makeRouter(AnyView(route))
+        _makeRouter(AnyView(route), self)
     }
 }
 
@@ -71,7 +74,7 @@ public struct SheetPresenter: Presenter {
     
     @ViewBuilder
     public func body(with context: PresentationContext) -> some View {
-        context.parent.sheet(isPresented: .constant(true)) {
+        context.parent.sheet(isPresented: context.$isPresented) {
             if providesRouter {
                 context.makeRouter(wrapping: context.destination)
             } else {

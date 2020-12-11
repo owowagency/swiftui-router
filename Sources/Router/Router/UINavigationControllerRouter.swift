@@ -58,6 +58,7 @@ public struct RouteViewIdentifier: Hashable {
 @available(iOS 13, *)
 open class UINavigationControllerRouter: Router {
     public let navigationController: UINavigationController
+    let parentRouter: (Router, PresentationContext)?
     
     /// key: `ObjectIdentifier` of the `HostingController`
     private var routeHosts: [RouteViewIdentifier: RouteHost] = [:]
@@ -66,15 +67,18 @@ open class UINavigationControllerRouter: Router {
     /// - Parameter navigationController: The navigation controller to use for routing.
     public init(navigationController: UINavigationController = UINavigationController()) {
         self.navigationController = navigationController
+        self.parentRouter = nil
     }
     
-    public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root, _ environmentObject: Root.EnvironmentObjectDependency) where Root: Route {
+    public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root, _ environmentObject: Root.EnvironmentObjectDependency, parent: (Router, PresentationContext)? = nil) where Root: Route {
         self.navigationController = navigationController
+        self.parentRouter = parent
         navigate(to: root, environmentObject, using: DestinationPresenter())
     }
     
     public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root) where Root: Route, Root.EnvironmentObjectDependency == VoidObservableObject {
         self.navigationController = navigationController
+        self.parentRouter = nil
         navigate(to: root, .init(), using: DestinationPresenter())
     }
     
@@ -138,11 +142,20 @@ open class UINavigationControllerRouter: Router {
             }
             
             let state = target.prepareState(environmentObject: environmentObject)
+            var isPresented = true
             let presentationContext = PresentationContext(
                 parent: host.root,
-                destination: AnyView(adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId))
-            ) { [unowned self] rootRoute in
-                self.makeChildRouterView(rootRoute: rootRoute)
+                destination: AnyView(adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId)),
+                isPresented: Binding(
+                    get: {
+                        isPresented
+                    },
+                    set: { newValue in
+                        isPresented = newValue
+                    }
+                )
+            ) { [unowned self] rootRoute, presentationContext in
+                self.makeChildRouterView(rootRoute: rootRoute, presentationContext: presentationContext)
             }
             
             hostingController.rootView = AnyView(presenter.body(with: presentationContext))
@@ -151,15 +164,50 @@ open class UINavigationControllerRouter: Router {
         return targetRouteViewId
     }
     
-    public func dismissUpTo(routeMatchesId id: RouteViewIdentifier) -> Bool {
-        #warning("TODO: Dismiss on parent router if it exists")
-        
+    public func dismissUpTo(routeMatchesId id: RouteViewIdentifier) {
         guard let hostingController = routeHosts[id]?.hostingController else {
+            if let (parentRouter, presentationContext) = parentRouter {
+                presentationContext.isPresented = false
+                DispatchQueue.main.async {
+                    parentRouter.dismissUpTo(routeMatchesId: id)
+                }
+                return
+            }
+            
             debugPrint("⚠️ Cannot dismiss route that's not in the hierarchy")
-            return false
+            return
         }
         
-        return navigationController.popToViewController(hostingController, animated: true)?.contains(hostingController) ?? false
+        navigationController.popToViewController(hostingController, animated: true)
+    }
+    
+    public func dismissUpToIncluding(routeMatchingId id: RouteViewIdentifier) {
+        guard let hostingController = routeHosts[id]?.hostingController else {
+            if let (parentRouter, presentationContext) = parentRouter {
+                presentationContext.isPresented = false
+                DispatchQueue.main.async {
+                    parentRouter.dismissUpTo(routeMatchesId: id)
+                }
+                return
+            }
+            
+            debugPrint("⚠️ Cannot dismiss route that's not in the hierarchy")
+            return
+        }
+        
+        if let viewControllerIndex = navigationController.viewControllers.firstIndex(of: hostingController) {
+            if viewControllerIndex == 0 {
+                debugPrint("⚠️ Dismissal of root route is not possible")
+                navigationController.popToRootViewController(animated: true)
+                return
+            }
+            
+            let viewControllerBefore = navigationController.viewControllers[viewControllerIndex - 1]
+            
+            navigationController.popToViewController(viewControllerBefore, animated: true)
+        } else {
+            debugPrint("Dismissal of route whose view controller is not presented by the navigation controller")
+        }
     }
     
     // MARK: Customisation points
@@ -169,8 +217,8 @@ open class UINavigationControllerRouter: Router {
     /// - Returns: A view controller for showing `destination`.
     open func makeViewController<Target: Route, ThePresenter: Presenter>(for target: Target, environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, routeViewId: RouteViewIdentifier) -> UIHostingController<AnyView> {
         let state = target.prepareState(environmentObject: environmentObject)
-        let context = PresentationContext(parent: EmptyView(), destination: target.body(state: state)) { [unowned self] rootRoute in
-            self.makeChildRouterView(rootRoute: rootRoute)
+        let context = PresentationContext(parent: EmptyView(), destination: target.body(state: state), isPresented: isPresentedBinding(forRouteMatchingId: routeViewId)) { [unowned self] rootRoute, presentationContext in
+            self.makeChildRouterView(rootRoute: rootRoute, presentationContext: presentationContext)
         }
         
         return makeHostingController(
@@ -207,10 +255,37 @@ open class UINavigationControllerRouter: Router {
         return routeHost
     }
     
-    open func makeChildRouterView<RootRoute: Route>(rootRoute: RootRoute) -> AnyView where RootRoute.EnvironmentObjectDependency == VoidObservableObject {
-        #warning("This child router should know it's parent, so that popping back is delegated upwards")
-        let router = UINavigationControllerRouter(root: rootRoute)
+    open func makeChildRouterView<RootRoute: Route>(
+        rootRoute: RootRoute,
+        presentationContext: PresentationContext
+    ) -> AnyView where RootRoute.EnvironmentObjectDependency == VoidObservableObject {
+        let router = UINavigationControllerRouter(
+            root: rootRoute,
+            VoidObservableObject(),
+            parent: (self, presentationContext)
+        )
         return AnyView(UINavigationControllerRouterView(router: router))
+    }
+    
+    public func isPresenting(routeMatchingId id: RouteViewIdentifier) -> Bool {
+        guard let viewController = routeHosts[id]?.hostingController else {
+            return false
+        }
+        
+        return navigationController.viewControllers.contains(viewController)
+    }
+    
+    private func isPresentedBinding(forRouteMatchingId id: RouteViewIdentifier) -> Binding<Bool> {
+        Binding(
+            get: { [weak self] in
+                self?.isPresenting(routeMatchingId: id) ?? false
+            },
+            set: { [weak self] newValue in
+                if !newValue {
+                    self?.dismissUpToIncluding(routeMatchingId: id)
+                }
+            }
+        )
     }
 }
 #endif
