@@ -40,8 +40,13 @@ extension Set where Element == RouteHost {
 }
 
 public struct RouteViewIdentifier: Hashable {
-    private static var id = 0
+    public static let none = RouteViewIdentifier(id: 0)
+    private static var id = 1
     let id: Int
+    
+    private init(id: Int) {
+        self.id = id
+    }
     
     init() {
         self.id = Self.id
@@ -133,16 +138,28 @@ open class UINavigationControllerRouter: Router {
             }
             
             let state = target.prepareState(environmentObject: environmentObject)
+            let presentationContext = PresentationContext(
+                parent: host.root,
+                destination: AnyView(adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId))
+            ) { [unowned self] rootRoute in
+                self.makeChildRouterView(rootRoute: rootRoute)
+            }
             
-            let presented = presenter.body(
-                from: host.root,
-                to: AnyView(adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId))
-            )
-            
-            hostingController.rootView = AnyView(presented)
+            hostingController.rootView = AnyView(presenter.body(with: presentationContext))
         }
         
         return targetRouteViewId
+    }
+    
+    public func dismissUpTo(routeMatchesId id: RouteViewIdentifier) -> Bool {
+        #warning("TODO: Dismiss on parent router if it exists")
+        
+        guard let hostingController = routeHosts[id]?.hostingController else {
+            debugPrint("⚠️ Cannot dismiss route that's not in the hierarchy")
+            return false
+        }
+        
+        return navigationController.popToViewController(hostingController, animated: true)?.contains(hostingController) ?? false
     }
     
     // MARK: Customisation points
@@ -152,14 +169,14 @@ open class UINavigationControllerRouter: Router {
     /// - Returns: A view controller for showing `destination`.
     open func makeViewController<Target: Route, ThePresenter: Presenter>(for target: Target, environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, routeViewId: RouteViewIdentifier) -> UIHostingController<AnyView> {
         let state = target.prepareState(environmentObject: environmentObject)
+        let context = PresentationContext(parent: EmptyView(), destination: target.body(state: state)) { [unowned self] rootRoute in
+            self.makeChildRouterView(rootRoute: rootRoute)
+        }
         
         return makeHostingController(
             // TODO: Pass source view
             rootView: adjustView(
-                presenter.body(
-                    from: AnyView(EmptyView()),
-                    to: AnyView(target.body(state: state))
-                ),
+                presenter.body(with: context),
                 environmentObject: environmentObject,
                 routeViewId: routeViewId
             )
@@ -168,7 +185,6 @@ open class UINavigationControllerRouter: Router {
     
     func adjustView<Input: View, Dependency: ObservableObject>(_ view: Input, environmentObject: Dependency, routeViewId: RouteViewIdentifier) -> some View {
         view
-            .environment(\.router, self)
             .environmentObject(VoidObservableObject())
             .environmentObject(environmentObject)
             .environment(\.routeViewId, routeViewId)
@@ -178,7 +194,7 @@ open class UINavigationControllerRouter: Router {
     ///
     /// If you need to add any additional customisations (for example, modifiers) to all views that you navigate to, this is the method you probably want to override.
     open func makeHostingController<Root: View>(rootView: Root) -> UIHostingController<AnyView> {
-        return UIHostingController(rootView: AnyView(rootView))
+        return UIHostingController(rootView: AnyView(rootView.environment(\.router, self)))
     }
     
     @discardableResult
@@ -189,6 +205,12 @@ open class UINavigationControllerRouter: Router {
         routeHosts[routeViewId] = routeHost
         
         return routeHost
+    }
+    
+    open func makeChildRouterView<RootRoute: Route>(rootRoute: RootRoute) -> AnyView where RootRoute.EnvironmentObjectDependency == VoidObservableObject {
+        #warning("This child router should know it's parent, so that popping back is delegated upwards")
+        let router = UINavigationControllerRouter(root: rootRoute)
+        return AnyView(UINavigationControllerRouterView(router: router))
     }
 }
 #endif
