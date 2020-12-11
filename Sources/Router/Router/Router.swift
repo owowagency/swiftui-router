@@ -2,17 +2,14 @@ import SwiftUI
 
 @available(iOS 13, macOS 10.15, *)
 public protocol Router {
-    func navigate<Target>(to target: Target, _ environmentObject: Target.EnvironmentObjectDependency) where Target: Route
-    func replaceRoot<Target>(with target: Target, _ environmentObject: Target.EnvironmentObjectDependency) where Target: Route
+    @discardableResult
+    func navigate<Target, ThePresenter>(to target: Target, _ environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, source: RouteViewIdentifier?) -> RouteViewIdentifier where Target: Route, ThePresenter: Presenter
 }
 
 @available(iOS 13, macOS 10.15, *)
 public extension Router {
-    func navigate<Target>(to target: Target) where Target: Route, Target.EnvironmentObjectDependency == VoidObservableObject {
-        navigate(to: target, VoidObservableObject())
-    }
-    
-    func replaceRoot<Target>(with target: Target) where Target: Route, Target.EnvironmentObjectDependency == VoidObservableObject {
-        replaceRoot(with: target, VoidObservableObject())
+    @discardableResult
+    func navigate<Target, ThePresenter>(to target: Target, _ environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter) -> RouteViewIdentifier where Target: Route, ThePresenter: Presenter {
+        navigate(to: target, environmentObject, using: presenter, source: nil)
     }
 }

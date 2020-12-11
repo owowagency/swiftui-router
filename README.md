@@ -97,3 +97,9 @@ extension Routes {
 ### Routers
 
 Before you are able to use your defined routes, you need to initialise a router. Because `Router` is a protocol, multiple implementations (including your own) are possible. SwiftUI Router provides the `UINavigationControllerRouter` implementation.
+
+## Principles
+
+- A route defines how to perform set-up of the state (if needed) for a given view, and how the view is a product of that state 
+- Navigation should be possible both programmatically (e.g. `router.navigate(...)`) and user-initiated (e.g. `RouterLink(to: ...)`)
+- The presentation of a route is decoupled 
