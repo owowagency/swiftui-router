@@ -83,7 +83,11 @@ public final class ObjectDependenciesBag {
     func objectDependency<Dependency: ObservableObject>(
         ofType type: Dependency.Type = Dependency.self
     ) -> Dependency {
-        dependencies[ObjectIdentifier(Dependency.self)] as! Dependency
+        guard let dependency = dependencies[ObjectIdentifier(Dependency.self)] as? Dependency else {
+            fatalError("😵 Internal inconsistency: stored dependency doesn't exist")
+        }
+        
+        return dependency
     }
     
     internal init() {
