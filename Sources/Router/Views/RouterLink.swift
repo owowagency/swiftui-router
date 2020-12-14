@@ -6,6 +6,7 @@ public struct RouterLink<Label: View, Target: Route>: View {
     @Environment(\.router) private var router
     @EnvironmentObject private var dependency: Target.EnvironmentObjectDependency
     @Environment(\.presenter) private var presenter
+    @Environment(\.routeViewId) private var source
     
     @usableFromInline
     var target: Target
@@ -32,6 +33,6 @@ public struct RouterLink<Label: View, Target: Route>: View {
             preconditionFailure("RouterLink needs to be used in a router context")
         }
         
-        router.navigate(to: target, dependency, using: presenter)
+        router.navigate(to: target, dependency, using: presenter, source: source)
     }
 }
