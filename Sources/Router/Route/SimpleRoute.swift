@@ -1,7 +1,7 @@
 import SwiftUI
 
 @available(iOS 13, macOS 10.15, *)
-public struct SimpleRoute<State, Body, EnvironmentObjectDependency>: Route where Body: View, EnvironmentObjectDependency: ObservableObject {
+public struct SimpleRoute<State, Body, EnvironmentObjectDependency>: EnvironmentDependentRoute where Body: View, EnvironmentObjectDependency: ObservableObject {
     @usableFromInline
     var _prepareState: (EnvironmentObjectDependency) -> State
     
@@ -36,3 +36,6 @@ public struct SimpleRoute<State, Body, EnvironmentObjectDependency>: Route where
         _body(state)
     }
 }
+
+@available(iOS 13, macOS 10.15, *)
+extension SimpleRoute: Route where EnvironmentObjectDependency == VoidObservableObject {}

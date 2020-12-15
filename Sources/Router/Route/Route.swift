@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A route represents a navigatable destination. It contains everything a `Router` needs to present a destination on the screen.
 @available(iOS 13, macOS 10.15, *)
-public protocol Route {
+public protocol EnvironmentDependentRoute {
     /// The `State` type of the route. The body (view) is defined as a product of the state.
     associatedtype State
     
@@ -20,9 +20,11 @@ public protocol Route {
 }
 
 @available(iOS 13, macOS 10.15, *)
-public extension Route where State == Void {
+public extension EnvironmentDependentRoute where State == Void {
     func prepareState(environmentObject: EnvironmentObjectDependency) -> State {
         ()
     }
 }
 
+@available(iOS 13, macOS 10.15, *)
+public protocol Route: EnvironmentDependentRoute where Self.EnvironmentObjectDependency == VoidObservableObject {}

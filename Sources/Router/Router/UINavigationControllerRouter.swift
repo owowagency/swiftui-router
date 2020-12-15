@@ -34,26 +34,12 @@ final class RouteHost: Hashable {
 }
 
 @available(iOS 13, macOS 10.15, *)
-extension Set where Element == RouteHost {
+extension Dictionary where Value == RouteHost {
     mutating func garbageCollect() {
-        self = self.filter { $0.hostingController != nil }
+        self = self.filter { $0.value.hostingController != nil }
     }
 }
 
-public struct RouteViewIdentifier: Hashable {
-    public static let none = RouteViewIdentifier(id: 0)
-    private static var id = 1
-    let id: Int
-    
-    private init(id: Int) {
-        self.id = id
-    }
-    
-    init() {
-        self.id = Self.id
-        Self.id += 1
-    }
-}
 
 /// A `Router` implementation that pushes routed views onto a `UINavigationController`.
 @available(iOS 13, *)
@@ -80,7 +66,7 @@ open class UINavigationControllerRouter: Router {
         navigate(to: root, environmentObject, using: DestinationPresenter())
     }
     
-    public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root) where Root: Route, Root.EnvironmentObjectDependency == VoidObservableObject {
+    public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root) where Root: Route {
         self.navigationController = navigationController
         self.parentRouter = nil
         navigate(to: root, .init(), using: DestinationPresenter())
@@ -88,10 +74,18 @@ open class UINavigationControllerRouter: Router {
     
     // MARK: Root view replacement
     
-    open func replaceRoot<Target: Route, ThePresenter: Presenter>(with target: Target, _ environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter) {
-        unimplemented()
-//        let viewController = makeViewController(for: target, environmentObject: environmentObject, using: presenter)
-//        navigationController.viewControllers = [viewController]
+    open func replaceRoot<Target: EnvironmentDependentRoute>(
+        with target: Target,
+        _ environmentObject: Target.EnvironmentObjectDependency
+    ) {
+        navigationController.viewControllers = []
+        navigate(to: target, environmentObject, using: DestinationPresenter())
+    }
+    
+    open func replaceRoot<Target: Route>(
+        with target: Target
+    ) {
+        self.replaceRoot(with: target, VoidObservableObject())
     }
     
     // MARK: Navigation
@@ -108,7 +102,7 @@ open class UINavigationControllerRouter: Router {
     
     /// - note: Not an implementation of the protocol requirement.
     @discardableResult
-    open func navigate<Target, ThePresenter>(to target: Target, _ environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, source: RouteViewIdentifier?) -> RouteViewIdentifier where Target : Route, ThePresenter : Presenter {
+    open func navigate<Target, ThePresenter>(to target: Target, _ environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, source: RouteViewIdentifier?) -> RouteViewIdentifier where Target : EnvironmentDependentRoute, ThePresenter : Presenter {
         func topLevelRouteHostOrNew() -> (RouteHost, UIHostingController<AnyView>) {
             if let topHost = topLevelRouteHost(), let viewController = topHost.hostingController {
                 return (topHost, viewController)
@@ -228,7 +222,7 @@ open class UINavigationControllerRouter: Router {
     /// Generate the view controller (usually a hosting controller) for the given destination.
     /// - Parameter destination: A destination to route to.
     /// - Returns: A view controller for showing `destination`.
-    open func makeViewController<Target: Route, ThePresenter: Presenter>(for target: Target, environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, routeViewId: RouteViewIdentifier) -> UIHostingController<AnyView> {
+    open func makeViewController<Target: EnvironmentDependentRoute, ThePresenter: Presenter>(for target: Target, environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, routeViewId: RouteViewIdentifier) -> UIHostingController<AnyView> {
         let state = target.prepareState(environmentObject: environmentObject)
         let presenterViewModel = PresenterViewModel()
         
@@ -256,16 +250,18 @@ open class UINavigationControllerRouter: Router {
     
     func adjustView<Input: View, Dependency: ObservableObject>(_ view: Input, environmentObject: Dependency, routeViewId: RouteViewIdentifier) -> some View {
         view
+            .environment(\.router, self)
             .environmentObject(VoidObservableObject())
             .environmentObject(environmentObject)
             .environment(\.routeViewId, routeViewId)
+            .id(routeViewId)
     }
     
     /// Takes a `View` and creates a hosting controller for it.
     ///
     /// If you need to add any additional customisations (for example, modifiers) to all views that you navigate to, this is the method you probably want to override.
     open func makeHostingController<Root: View>(rootView: Root) -> UIHostingController<AnyView> {
-        return UIHostingController(rootView: AnyView(rootView.environment(\.router, self)))
+        return UIHostingController(rootView: AnyView(rootView))
     }
     
     @discardableResult
@@ -278,13 +274,11 @@ open class UINavigationControllerRouter: Router {
         return routeHost
     }
     
-    
-    
     func makeChildRouterView<RootRoute: Route>(
         rootRoute: RootRoute,
         presentationContext: PresentationContext,
         presenterViewModel: PresenterViewModel
-    ) -> AnyView where RootRoute.EnvironmentObjectDependency == VoidObservableObject {
+    ) -> AnyView {
         let router = UINavigationControllerRouter(
             root: rootRoute,
             VoidObservableObject(),
