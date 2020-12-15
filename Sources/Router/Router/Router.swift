@@ -31,7 +31,7 @@ public protocol Router {
         _ environmentObject: Target.EnvironmentObjectDependency,
         using presenter: ThePresenter,
         source: RouteViewIdentifier?
-    ) -> RouteViewIdentifier where Target: Route, ThePresenter: Presenter
+    ) -> RouteViewIdentifier where Target: EnvironmentDependentRoute, ThePresenter: Presenter
     
     // MARK: - Dismissal
     
@@ -63,7 +63,7 @@ public extension Router {
         to target: Target,
         _ environmentObject: Target.EnvironmentObjectDependency,
         using presenter: ThePresenter
-    ) -> RouteViewIdentifier where Target: Route, ThePresenter: Presenter {
+    ) -> RouteViewIdentifier where Target: EnvironmentDependentRoute, ThePresenter: Presenter {
         navigate(to: target, environmentObject, using: presenter, source: nil)
     }
     
@@ -73,7 +73,7 @@ public extension Router {
         to target: Target,
         _ environmentObject: Target.EnvironmentObjectDependency,
         source: RouteViewIdentifier? = nil
-    ) -> RouteViewIdentifier where Target: Route {
+    ) -> RouteViewIdentifier where Target: EnvironmentDependentRoute {
         navigate(to: target, environmentObject, using: DestinationPresenter(), source: source)
     }
     
@@ -83,7 +83,7 @@ public extension Router {
         to target: Target,
         using presenter: ThePresenter,
         source: RouteViewIdentifier? = nil
-    ) -> RouteViewIdentifier where Target: Route, ThePresenter: Presenter, Target.EnvironmentObjectDependency == VoidObservableObject {
+    ) -> RouteViewIdentifier where Target: Route, ThePresenter: Presenter {
         navigate(to: target, VoidObservableObject(), using: presenter, source: source)
     }
     
@@ -92,7 +92,7 @@ public extension Router {
     func navigate<Target>(
         to target: Target,
         source: RouteViewIdentifier? = nil
-    ) -> RouteViewIdentifier where Target: Route, Target.EnvironmentObjectDependency == VoidObservableObject {
+    ) -> RouteViewIdentifier where Target: Route {
         navigate(to: target, VoidObservableObject(), source: source)
     }
 }

@@ -66,7 +66,7 @@ open class UINavigationControllerRouter: Router {
         navigate(to: root, environmentObject, using: DestinationPresenter())
     }
     
-    public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root) where Root: Route, Root.EnvironmentObjectDependency == VoidObservableObject {
+    public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root) where Root: Route {
         self.navigationController = navigationController
         self.parentRouter = nil
         navigate(to: root, .init(), using: DestinationPresenter())
@@ -74,7 +74,7 @@ open class UINavigationControllerRouter: Router {
     
     // MARK: Root view replacement
     
-    open func replaceRoot<Target: Route>(
+    open func replaceRoot<Target: EnvironmentDependentRoute>(
         with target: Target,
         _ environmentObject: Target.EnvironmentObjectDependency
     ) {
@@ -84,7 +84,7 @@ open class UINavigationControllerRouter: Router {
     
     open func replaceRoot<Target: Route>(
         with target: Target
-    ) where Target.EnvironmentObjectDependency == VoidObservableObject {
+    ) {
         self.replaceRoot(with: target, VoidObservableObject())
     }
     
@@ -102,7 +102,7 @@ open class UINavigationControllerRouter: Router {
     
     /// - note: Not an implementation of the protocol requirement.
     @discardableResult
-    open func navigate<Target, ThePresenter>(to target: Target, _ environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, source: RouteViewIdentifier?) -> RouteViewIdentifier where Target : Route, ThePresenter : Presenter {
+    open func navigate<Target, ThePresenter>(to target: Target, _ environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, source: RouteViewIdentifier?) -> RouteViewIdentifier where Target : EnvironmentDependentRoute, ThePresenter : Presenter {
         func topLevelRouteHostOrNew() -> (RouteHost, UIHostingController<AnyView>) {
             if let topHost = topLevelRouteHost(), let viewController = topHost.hostingController {
                 return (topHost, viewController)
@@ -222,7 +222,7 @@ open class UINavigationControllerRouter: Router {
     /// Generate the view controller (usually a hosting controller) for the given destination.
     /// - Parameter destination: A destination to route to.
     /// - Returns: A view controller for showing `destination`.
-    open func makeViewController<Target: Route, ThePresenter: Presenter>(for target: Target, environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, routeViewId: RouteViewIdentifier) -> UIHostingController<AnyView> {
+    open func makeViewController<Target: EnvironmentDependentRoute, ThePresenter: Presenter>(for target: Target, environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, routeViewId: RouteViewIdentifier) -> UIHostingController<AnyView> {
         let state = target.prepareState(environmentObject: environmentObject)
         let presenterViewModel = PresenterViewModel()
         
@@ -278,7 +278,7 @@ open class UINavigationControllerRouter: Router {
         rootRoute: RootRoute,
         presentationContext: PresentationContext,
         presenterViewModel: PresenterViewModel
-    ) -> AnyView where RootRoute.EnvironmentObjectDependency == VoidObservableObject {
+    ) -> AnyView {
         let router = UINavigationControllerRouter(
             root: rootRoute,
             VoidObservableObject(),

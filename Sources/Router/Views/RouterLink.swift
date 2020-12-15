@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A view that controls routing to a given destination.
 @available(iOS 13, macOS 10.15, *)
-public struct RouterLink<Label: View, Target: Route>: View {
+public struct RouterLink<Label: View, Target: EnvironmentDependentRoute>: View {
     @Environment(\.router) private var router
     @EnvironmentObject private var dependency: Target.EnvironmentObjectDependency
     @Environment(\.presenter) private var presenter
