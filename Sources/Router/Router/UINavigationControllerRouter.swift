@@ -74,18 +74,13 @@ open class UINavigationControllerRouter: Router {
     
     // MARK: Root view replacement
     
-    open func replaceRoot<Target: EnvironmentDependentRoute>(
+    open func replaceRoot<Target, ThePresenter>(
         with target: Target,
-        _ environmentObject: Target.EnvironmentObjectDependency
-    ) {
+        _ environmentObject: Target.EnvironmentObjectDependency,
+        using presenter: ThePresenter
+    ) -> RouteViewIdentifier where Target : EnvironmentDependentRoute, ThePresenter : Presenter {
         navigationController.viewControllers = []
-        navigate(to: target, environmentObject, using: DestinationPresenter())
-    }
-    
-    open func replaceRoot<Target: Route>(
-        with target: Target
-    ) {
-        self.replaceRoot(with: target, VoidObservableObject())
+        return navigate(to: target, environmentObject, using: presenter)
     }
     
     // MARK: Navigation
