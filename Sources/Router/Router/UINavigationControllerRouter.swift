@@ -80,6 +80,7 @@ open class UINavigationControllerRouter: Router {
         using presenter: ThePresenter
     ) -> RouteViewIdentifier where Target : EnvironmentDependentRoute, ThePresenter : Presenter {
         navigationController.viewControllers = []
+        routeHosts.removeAll()
         return navigate(to: target, environmentObject, using: presenter)
     }
     
@@ -98,6 +99,8 @@ open class UINavigationControllerRouter: Router {
     /// - note: Not an implementation of the protocol requirement.
     @discardableResult
     open func navigate<Target, ThePresenter>(to target: Target, _ environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, source: RouteViewIdentifier?) -> RouteViewIdentifier where Target : EnvironmentDependentRoute, ThePresenter : Presenter {
+        routeHosts.garbageCollect()
+        
         func topLevelRouteHostOrNew() -> (RouteHost, UIHostingController<AnyView>) {
             if let topHost = topLevelRouteHost(), let viewController = topHost.hostingController {
                 return (topHost, viewController)
