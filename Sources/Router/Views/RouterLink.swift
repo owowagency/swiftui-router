@@ -14,19 +14,23 @@ public struct RouterLink<Label: View, Target: EnvironmentDependentRoute>: View {
     @usableFromInline
     var label: Label
     
-    @usableFromInline
-    var replaceRoot: Bool
+    var replacesRoot: Bool = false
     
     /// Creates an instance that navigates to `destination`.
     /// - Parameters:
     ///   - destination: The navigation target route.
     ///   - label: A label describing the link.
-    ///   - replaceRoot: When set to `true`, the link will use the `replaceRoot` router method instead of `navigate`
     @inlinable
-    public init(to destination: Target, replaceRoot: Bool = false, @ViewBuilder label: () -> Label) {
+    public init(to destination: Target, @ViewBuilder label: () -> Label) {
         self.target = destination
-        self.replaceRoot = replaceRoot
         self.label = label()
+    }
+    
+    /// Configure a link to use the `replaceRoot` router method instead of `navigate`
+    public func replaceRoot() -> Self {
+        var copy = self
+        copy.replacesRoot = true
+        return copy
     }
     
     public var body: some View {
@@ -38,7 +42,7 @@ public struct RouterLink<Label: View, Target: EnvironmentDependentRoute>: View {
             preconditionFailure("RouterLink needs to be used in a router context")
         }
         
-        if replaceRoot {
+        if replacesRoot {
             router.replaceRoot(with: target, dependency, using: presenter)
         } else {
             router.navigate(to: target, dependency, using: presenter, source: source)
