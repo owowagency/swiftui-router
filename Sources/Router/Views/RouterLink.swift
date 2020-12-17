@@ -23,10 +23,10 @@ public struct RouterLink<Label: View, Target: EnvironmentDependentRoute>: View {
     ///   - label: A label describing the link.
     ///   - replaceRoot: When set to `true`, the link will use the `replaceRoot` router method instead of `navigate`
     @inlinable
-    public init(to destination: Target, @ViewBuilder label: () -> Label, replaceRoot: Bool = false) {
+    public init(to destination: Target, replaceRoot: Bool = false, @ViewBuilder label: () -> Label) {
         self.target = destination
-        self.label = label()
         self.replaceRoot = replaceRoot
+        self.label = label()
     }
     
     public var body: some View {
