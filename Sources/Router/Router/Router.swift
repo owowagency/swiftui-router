@@ -33,6 +33,14 @@ public protocol Router {
         source: RouteViewIdentifier?
     ) -> RouteViewIdentifier where Target: EnvironmentDependentRoute, ThePresenter: Presenter
     
+    /// Replaces the root view of the router with the given `target` route, replacing all current views.
+    @discardableResult
+    func replaceRoot<Target, ThePresenter>(
+        with target: Target,
+        _ environmentObject: Target.EnvironmentObjectDependency,
+        using presenter: ThePresenter
+    ) -> RouteViewIdentifier where Target: EnvironmentDependentRoute, ThePresenter: Presenter
+    
     // MARK: - Dismissal
     
     /// Dismiss up to, but not including, the route matching `id`.
@@ -57,7 +65,7 @@ public extension Router {
     
     // MARK: - Convenience navigation methods
     
-    /// A variation on `navigate(to::using:source:)` without a source.
+    /// A variation on `navigate(to:_:using:source:)` without a source.
     @discardableResult
     func navigate<Target, ThePresenter>(
         to target: Target,
@@ -67,7 +75,7 @@ public extension Router {
         navigate(to: target, environmentObject, using: presenter, source: nil)
     }
     
-    /// A variation on `navigate(to::using:source:)` that uses `DestinationPresenter`.
+    /// A variation on `navigate(to:_:using:source:)` that uses `DestinationPresenter`.
     @discardableResult
     func navigate<Target>(
         to target: Target,
@@ -77,7 +85,7 @@ public extension Router {
         navigate(to: target, environmentObject, using: DestinationPresenter(), source: source)
     }
     
-    /// A variation on `navigate(to::using:source:)` without an EnvironmentObject dependency.
+    /// A variation on `navigate(to:_:using:source:)` without an EnvironmentObject dependency.
     @discardableResult
     func navigate<Target, ThePresenter>(
         to target: Target,
@@ -87,7 +95,7 @@ public extension Router {
         navigate(to: target, VoidObservableObject(), using: presenter, source: source)
     }
     
-    /// A variation on `navigate(to::using:source:)` without an EnvironmentObject dependency that uses `DestinationPresenter`.
+    /// A variation on `navigate(to:_:using:source:)` without an EnvironmentObject dependency that uses `DestinationPresenter`.
     @discardableResult
     func navigate<Target>(
         to target: Target,
@@ -95,4 +103,33 @@ public extension Router {
     ) -> RouteViewIdentifier where Target: Route {
         navigate(to: target, VoidObservableObject(), source: source)
     }
+    
+    // MARK: - Convenience root replacement functions
+    
+    /// A variation of `replaceRoot(with:_:using:)` that uses `DestinationPresenter`.
+    @discardableResult
+    func replaceRoot<Target>(
+        with target: Target,
+        _ environmentObject: Target.EnvironmentObjectDependency
+    ) -> RouteViewIdentifier where Target: EnvironmentDependentRoute {
+        replaceRoot(with: target, environmentObject, using: DestinationPresenter())
+    }
+    
+    /// A variation of `replaceRoot(with:_:using:)` without an EnvironmentObject dependency.
+    @discardableResult
+    func replaceRoot<Target, ThePresenter>(
+        with target: Target,
+        using presenter: ThePresenter
+    ) -> RouteViewIdentifier where Target: Route, ThePresenter: Presenter {
+        replaceRoot(with: target, VoidObservableObject(), using: presenter)
+    }
+    
+    /// A variation of `replaceRoot(witH:_:using:)` without an EnvironmentObject dependency that uses `DestinationPresenter`.
+    @discardableResult
+    func replaceRoot<Target>(
+        with target: Target
+    ) -> RouteViewIdentifier where Target: Route {
+        replaceRoot(with: target, VoidObservableObject(), using: DestinationPresenter())
+    }
+    
 }
