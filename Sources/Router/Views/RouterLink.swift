@@ -25,7 +25,7 @@ public struct RouterLink<Label: View, Target: EnvironmentDependentRoute>: View {
     }
     
     public var body: some View {
-        Button(action: navigate) { label }
+        label.onTapGesture(perform: navigate)
     }
     
     private func navigate() {

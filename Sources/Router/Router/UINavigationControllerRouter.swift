@@ -4,7 +4,7 @@ import SwiftUI
 import Combine
 
 @available(iOS 13, macOS 10.15, *)
-final class RouteHost: Hashable {
+fileprivate final class RouteHost: Hashable {
     
     // MARK: State
     
@@ -39,7 +39,6 @@ extension Dictionary where Value == RouteHost {
         self = self.filter { $0.value.hostingController != nil }
     }
 }
-
 
 /// A `Router` implementation that pushes routed views onto a `UINavigationController`.
 @available(iOS 13, *)
@@ -110,7 +109,7 @@ open class UINavigationControllerRouter: Router {
                 debugPrint("⚠️ Presenting route host for replacing presenter \(presenter) as root view, because an eligible view for presentation was not found.")
                 
                 let id = RouteViewIdentifier()
-                let viewController = makeViewController(for: target, environmentObject: environmentObject, using: presenter, routeViewId: id)
+                let viewController = makeView(for: target, environmentObject: environmentObject, using: presenter, routeViewId: id)
                 let routeHost = registerHostingController(hostingController: viewController, byRouteViewId: id)
                 return (routeHost, viewController)
             }
@@ -119,7 +118,7 @@ open class UINavigationControllerRouter: Router {
         let targetRouteViewId = RouteViewIdentifier()
         
         if !presenter.replacesParent { // Push 💨
-            let viewController = makeViewController(for: target, environmentObject: environmentObject, using: presenter, routeViewId: targetRouteViewId)
+            let viewController = makeView(for: target, environmentObject: environmentObject, using: presenter, routeViewId: targetRouteViewId)
             registerHostingController(hostingController: viewController, byRouteViewId: targetRouteViewId)
             navigationController.pushViewController(viewController, animated: true)
         } else {
@@ -222,7 +221,7 @@ open class UINavigationControllerRouter: Router {
     /// Generate the view controller (usually a hosting controller) for the given destination.
     /// - Parameter destination: A destination to route to.
     /// - Returns: A view controller for showing `destination`.
-    open func makeViewController<Target: EnvironmentDependentRoute, ThePresenter: Presenter>(for target: Target, environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, routeViewId: RouteViewIdentifier) -> UIHostingController<AnyView> {
+    open func makeView<Target: EnvironmentDependentRoute, ThePresenter: Presenter>(for target: Target, environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, routeViewId: RouteViewIdentifier) -> UIHostingController<AnyView> {
         let state = target.prepareState(environmentObject: environmentObject)
         let presenterViewModel = PresenterViewModel()
         
