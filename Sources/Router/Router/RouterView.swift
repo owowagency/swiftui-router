@@ -4,11 +4,11 @@ import SwiftUI
 public struct RouterView: View {
     @State var router: UINavigationControllerRouter
     
-    public init<RootRoute: Route>(root: RootRoute) where RootRoute.EnvironmentObjectDependency == VoidObservableObject {
+    public init<RootRoute: Route>(root: RootRoute) {
         self._router = State(wrappedValue: UINavigationControllerRouter(root: root))
     }
     
-    public init<RootRoute: Route>(root: RootRoute, dependency: RootRoute.EnvironmentObjectDependency) {
+    public init<RootRoute: EnvironmentDependentRoute>(root: RootRoute, dependency: RootRoute.EnvironmentObjectDependency) {
         self._router = State(wrappedValue: UINavigationControllerRouter(root: root, dependency))
     }
     
