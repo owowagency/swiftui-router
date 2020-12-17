@@ -60,7 +60,7 @@ open class UINavigationControllerRouter: Router {
         self.parentRouter = nil
     }
     
-    public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root, _ environmentObject: Root.EnvironmentObjectDependency, parent: (Router, PresentationContext)? = nil) where Root: Route {
+    public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root, _ environmentObject: Root.EnvironmentObjectDependency, parent: (Router, PresentationContext)? = nil) where Root: EnvironmentDependentRoute {
         self.navigationController = navigationController
         self.parentRouter = parent
         navigate(to: root, environmentObject, using: DestinationPresenter())
