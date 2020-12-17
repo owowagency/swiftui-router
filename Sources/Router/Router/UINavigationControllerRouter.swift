@@ -59,7 +59,7 @@ open class UINavigationControllerRouter: Router {
         self.parentRouter = nil
     }
     
-    public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root, _ environmentObject: Root.EnvironmentObjectDependency, parent: (Router, PresentationContext)? = nil) where Root: Route {
+    public init<Root>(navigationController: UINavigationController = UINavigationController(), root: Root, _ environmentObject: Root.EnvironmentObjectDependency, parent: (Router, PresentationContext)? = nil) where Root: EnvironmentDependentRoute {
         self.navigationController = navigationController
         self.parentRouter = parent
         navigate(to: root, environmentObject, using: DestinationPresenter())
@@ -73,18 +73,15 @@ open class UINavigationControllerRouter: Router {
     
     // MARK: Root view replacement
     
-    open func replaceRoot<Target: EnvironmentDependentRoute>(
+    open func replaceRoot<Target, ThePresenter>(
         with target: Target,
-        _ environmentObject: Target.EnvironmentObjectDependency
-    ) {
+        _ environmentObject: Target.EnvironmentObjectDependency,
+        using presenter: ThePresenter
+    ) -> RouteViewIdentifier where Target : EnvironmentDependentRoute, ThePresenter : Presenter {
         navigationController.viewControllers = []
-        navigate(to: target, environmentObject, using: DestinationPresenter())
-    }
-    
-    open func replaceRoot<Target: Route>(
-        with target: Target
-    ) {
-        self.replaceRoot(with: target, VoidObservableObject())
+        navigationController.presentedViewController?.dismiss(animated: true, completion: nil)
+        routeHosts.removeAll()
+        return navigate(to: target, environmentObject, using: presenter)
     }
     
     // MARK: Navigation
@@ -102,6 +99,8 @@ open class UINavigationControllerRouter: Router {
     /// - note: Not an implementation of the protocol requirement.
     @discardableResult
     open func navigate<Target, ThePresenter>(to target: Target, _ environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, source: RouteViewIdentifier?) -> RouteViewIdentifier where Target : EnvironmentDependentRoute, ThePresenter : Presenter {
+        routeHosts.garbageCollect()
+        
         func topLevelRouteHostOrNew() -> (RouteHost, UIHostingController<AnyView>) {
             if let topHost = topLevelRouteHost(), let viewController = topHost.hostingController {
                 return (topHost, viewController)
