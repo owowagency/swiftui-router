@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push
+
+jobs:
+  build:
+    runs-on: macOS-latest
+    
+    strategy:
+      matrix:
+        destination:
+          - generic/platform=iOS
+    
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: |
+        xcodebuild build \
+        -scheme Router \
+        -destination "${{ matrix.destination }}" \
+        | xcpretty && exit ${PIPESTATUS[0]}
+    - name: List Xcode & Swift versions
+      if: ${{ failure() }}
+      run: |
+        swift --version
+        xcodebuild -version
