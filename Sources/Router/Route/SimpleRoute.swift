@@ -9,19 +9,19 @@ public struct SimpleRoute<State, Body, EnvironmentObjectDependency>: Environment
     var _body: (State) -> Body
     
     @inlinable
-    public init(dependency: EnvironmentObjectDependency.Type = EnvironmentObjectDependency.self, prepareState: @escaping (EnvironmentObjectDependency) -> State, body: @escaping (State) -> Body) {
+    public init(dependency: EnvironmentObjectDependency.Type = EnvironmentObjectDependency.self, prepareState: @escaping (EnvironmentObjectDependency) -> State, @ViewBuilder body: @escaping (State) -> Body) {
         _prepareState = prepareState
         _body = body
     }
     
     @inlinable
-    public init(prepareState: @escaping () -> State, body: @escaping (State) -> Body) where EnvironmentObjectDependency == VoidObservableObject {
+    public init(prepareState: @escaping () -> State, @ViewBuilder body: @escaping (State) -> Body) where EnvironmentObjectDependency == VoidObservableObject {
         _prepareState = { _ in prepareState() }
         _body = body
     }
     
     @inlinable
-    public init(body: @escaping () -> Body) where State == Void, EnvironmentObjectDependency == VoidObservableObject {
+    public init(@ViewBuilder body: @escaping () -> Body) where State == Void, EnvironmentObjectDependency == VoidObservableObject {
         _prepareState = { _ in () }
         _body = { _ in body() }
     }

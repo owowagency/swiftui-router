@@ -119,7 +119,14 @@ open class UINavigationControllerRouter: Router {
         if !presenter.replacesParent { // Push 💨
             let viewController = makeView(for: target, environmentObject: environmentObject, using: presenter, routeViewId: targetRouteViewId)
             registerHostingController(hostingController: viewController, byRouteViewId: targetRouteViewId)
-            navigationController.pushViewController(viewController, animated: true)
+            
+            if navigationController.viewControllers.isEmpty {
+                // For some reason, this is needed to work reliably on iOS 13.
+                // On iOS 14, just pusing onto the empty navigation controller works fine.
+                navigationController.viewControllers = [viewController]
+            } else {
+                navigationController.pushViewController(viewController, animated: true)
+            }
         } else {
             let host: RouteHost
             let hostingController: UIHostingController<AnyView>
