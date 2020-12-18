@@ -76,17 +76,21 @@ open class MacRouter: Router {
     
     // MARK: Root view replacement
     
-    open func replaceRoot<Target: EnvironmentDependentRoute>(
+    open func replaceRoot<Target, ThePresenter>(
         with target: Target,
-        _ environmentObject: Target.EnvironmentObjectDependency
-    ) {
-        navigate(to: target, environmentObject, using: DestinationPresenter())
-    }
-    
-    open func replaceRoot<Target: Route>(
-        with target: Target
-    ) {
-        self.replaceRoot(with: target, VoidObservableObject())
+        _ environmentObject: Target.EnvironmentObjectDependency,
+        using presenter: ThePresenter
+    ) -> RouteViewIdentifier where Target : EnvironmentDependentRoute, ThePresenter : Presenter {
+        self.stack.removeAll(keepingCapacity: true)
+        self.routeHosts.removeAll(keepingCapacity: true)
+        self.hostingController.rootView = AnyView(EmptyView())
+        
+        return navigate(
+            to: target,
+            environmentObject,
+            using: presenter,
+            source: nil
+        )
     }
     
     // MARK: Navigation

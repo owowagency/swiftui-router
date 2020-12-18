@@ -1,3 +1,4 @@
+#if canImport(AppKit)
 import SwiftUI
 
 public struct MacRouterView: NSViewControllerRepresentable {
@@ -15,3 +16,4 @@ public struct MacRouterView: NSViewControllerRepresentable {
     
     public func updateNSViewController(_ nsViewController: NSHostingController<AnyView>, context: Context) { }
 }
+#endif

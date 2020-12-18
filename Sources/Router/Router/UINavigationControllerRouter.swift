@@ -270,7 +270,7 @@ open class UINavigationControllerRouter: Router {
     }
     
     @discardableResult
-    func registerHostingController(hostingController: UIHostingController<AnyView>, byRouteViewId routeViewId: RouteViewIdentifier) -> RouteHost {
+    fileprivate func registerHostingController(hostingController: UIHostingController<AnyView>, byRouteViewId routeViewId: RouteViewIdentifier) -> RouteHost {
         assert(!routeHosts.values.contains { $0.hostingController === hostingController })
         
         let routeHost = RouteHost(root: hostingController.rootView, hostingController: hostingController)
