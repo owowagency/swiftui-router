@@ -1,7 +1,6 @@
 #if canImport(AppKit)
 import Combine
 import SwiftUI
-import Router
 
 @available(macOS 10.15, *)
 fileprivate final class RouteHost: Hashable {
@@ -60,7 +59,7 @@ open class MacRouter: Router {
         root: Root,
         _ environmentObject: Root.EnvironmentObjectDependency,
         parent: (Router, PresentationContext)? = nil
-    ) where Root: Route {
+    ) where Root: EnvironmentDependentRoute {
         self.hostingController =  NSHostingController(rootView: AnyView(EmptyView()))
         self.parentRouter = parent
         replaceRoot(with: root, environmentObject)
@@ -155,8 +154,13 @@ open class MacRouter: Router {
                         presenterViewModel.isPresented = newValue
                     }
                 )
-            ) { [unowned self] rootRoute, presentationContext in
-                self.makeChildRouterView(rootRoute: rootRoute, presentationContext: presentationContext, presenterViewModel: presenterViewModel)
+            ) { [unowned self] presentationContext in
+                self.makeChildRouterView(
+                    rootRoute: target,
+                    environmentObject: environmentObject,
+                    presentationContext: presentationContext,
+                    presenterViewModel: presenterViewModel
+                )
             }
             
             presenterViewModel.$isPresented
@@ -179,7 +183,6 @@ open class MacRouter: Router {
                 let route = routeHosts.first(where: { $0.value == lastRouteHost })
             else {
                 if let (parentRouter, presentationContext) = parentRouter {
-                    #warning("When dismissing `self` as a child of `parentRouter`, make sure the current presenter is removed from the hierarchy by replacing the hierarchy with the routeHost.rootView")
                     presentationContext.isPresented = false
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         parentRouter.dismissUpTo(routeMatchesId: id)
@@ -210,7 +213,6 @@ open class MacRouter: Router {
                 let route = routeHosts.first(where: { $0.value == lastRouteHost })
             else {
                 if let (parentRouter, presentationContext) = parentRouter {
-                    #warning("When dismissing `self` as a child of `parentRouter`, make sure the current presenter is removed from the hierarchy by replacing the hierarchy with the routeHost.rootView")
                     presentationContext.isPresented = false
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         parentRouter.dismissUpTo(routeMatchesId: id)
@@ -248,9 +250,10 @@ open class MacRouter: Router {
             parent: EmptyView(),
             destination: target.body(state: state),
             isPresented: isPresentedBinding(forRouteMatchingId: routeViewId, presenterViewModel: presenterViewModel)
-        ) { [unowned self] rootRoute, presentationContext in
+        ) { [unowned self] presentationContext in
             self.makeChildRouterView(
-                rootRoute: rootRoute,
+                rootRoute: target,
+                environmentObject: environmentObject,
                 presentationContext: presentationContext,
                 presenterViewModel: presenterViewModel
             )
@@ -281,14 +284,15 @@ open class MacRouter: Router {
         return routeHost
     }
     
-    func makeChildRouterView<RootRoute: Route>(
+    func makeChildRouterView<RootRoute: EnvironmentDependentRoute>(
         rootRoute: RootRoute,
+        environmentObject: RootRoute.EnvironmentObjectDependency,
         presentationContext: PresentationContext,
         presenterViewModel: PresenterViewModel
     ) -> AnyView {
         let router = MacRouter(
             root: rootRoute,
-            VoidObservableObject(),
+            environmentObject,
             parent: (self, presentationContext)
         )
         return AnyView(PresenterView(wrappedView: MacRouterView(router: router), viewModel: presenterViewModel))
