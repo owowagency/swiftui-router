@@ -12,20 +12,16 @@ public protocol Presenter {
 public struct PresentationContext {
     private var _parent: AnyView
     private var _destination: AnyView
-    private var _makeRouter: (AnyView, PresentationContext) -> AnyView
+    private var _makeDestinationRouter: (PresentationContext) -> AnyView
     
-    public typealias RouterViewFactory = (SimpleRoute<Void, AnyView, VoidObservableObject>, PresentationContext) -> AnyView
+    public typealias RouterViewFactory = (PresentationContext) -> AnyView
     
     public init<Parent: View, Destination: View>(parent: Parent, destination: Destination, isPresented: Binding<Bool>, makeRouter: @escaping RouterViewFactory) {
         self._parent = AnyView(parent)
         self._destination = AnyView(destination)
         self._isPresented = isPresented
-        _makeRouter = { wrappedView, `self` in
-            let route = SimpleRoute {
-                AnyView(wrappedView)
-            }
-            
-            return makeRouter(route, self)
+        _makeDestinationRouter = { `self` in
+            return makeRouter(self)
         }
     }
     
@@ -33,12 +29,8 @@ public struct PresentationContext {
         self._parent = parent
         self._destination = destination
         self._isPresented = isPresented
-        _makeRouter = { wrappedView, `self` in
-            let route = SimpleRoute {
-                AnyView(wrappedView)
-            }
-            
-            return makeRouter(route, self)
+        _makeDestinationRouter = { `self` in
+            return makeRouter(self)
         }
     }
     
@@ -46,7 +38,7 @@ public struct PresentationContext {
     public var destination: some View { _destination }
     @Binding public var isPresented: Bool
     
-    public func makeRouter<NestedView: View>(wrapping route: NestedView) -> some View {
-        _makeRouter(AnyView(route), self)
+    public func makeDestinationRouter() -> some View {
+        _makeDestinationRouter(self)
     }
 }
