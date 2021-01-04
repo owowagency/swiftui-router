@@ -15,7 +15,7 @@ public struct SheetPresenter: Presenter {
     public func body(with context: PresentationContext) -> some View {
         context.parent.sheet(isPresented: context.$isPresented) {
             if providesRouter {
-                context.makeRouter(wrapping: context.destination)
+                context.makeDestinationRouter()
             } else {
                 context.destination
             }

@@ -99,7 +99,11 @@ open class UINavigationControllerRouter: Router {
     
     /// - note: Not an implementation of the protocol requirement.
     @discardableResult
-    open func navigate<Target, ThePresenter>(to target: Target, _ environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, source: RouteViewIdentifier?) -> RouteViewIdentifier where Target : EnvironmentDependentRoute, ThePresenter : Presenter {
+    open func navigate<Target, ThePresenter>(
+        to target: Target,
+        _ environmentObject: Target.EnvironmentObjectDependency,
+        using presenter: ThePresenter, source: RouteViewIdentifier?
+    ) -> RouteViewIdentifier where Target : EnvironmentDependentRoute, ThePresenter : Presenter {
         routeHosts.garbageCollect()
         
         func topLevelRouteHostOrNew() -> (RouteHost, UIHostingController<AnyView>) {
@@ -157,10 +161,23 @@ open class UINavigationControllerRouter: Router {
                     },
                     set: { newValue in
                         presenterViewModel.isPresented = newValue
+                        
+                        if newValue == false {
+                            // Remove the presenter from the host.
+                            DispatchQueue.main.async {
+                                // Wait until the next iteration of the run loop, for example for sheet modifiers to dismiss themselves before removing them.
+                                hostingController.rootView = host.root
+                            }
+                        }
                     }
                 )
-            ) { [unowned self] rootRoute, presentationContext in
-                self.makeChildRouterView(rootRoute: rootRoute, presentationContext: presentationContext, presenterViewModel: presenterViewModel)
+            ) { [unowned self] presentationContext in
+                self.makeChildRouterView(
+                    rootRoute: target,
+                    environmentObject: environmentObject,
+                    presentationContext: presentationContext,
+                    presenterViewModel: presenterViewModel
+                )
             }
             
             presenterViewModel.$isPresented
@@ -179,7 +196,6 @@ open class UINavigationControllerRouter: Router {
         guard let hostingController = routeHosts[id]?.hostingController else {
             if let (parentRouter, presentationContext) = parentRouter {
                 presentationContext.isPresented = false
-                #warning("When dismissing `self` as a child of `parentRouter`, make sure the current presenter is removed from the hierarchy by replacing the hierarchy with the routeHost.rootView")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     parentRouter.dismissUpTo(routeMatchesId: id)
                 }
@@ -197,7 +213,6 @@ open class UINavigationControllerRouter: Router {
         guard let hostingController = routeHosts[id]?.hostingController else {
             if let (parentRouter, presentationContext) = parentRouter {
                 presentationContext.isPresented = false
-                #warning("When dismissing `self` as a child of `parentRouter`, make sure the current presenter is removed from the hierarchy by replacing the hierarchy with the routeHost.rootView")
                 DispatchQueue.main.async {
                     parentRouter.dismissUpTo(routeMatchesId: id)
                 }
@@ -210,8 +225,12 @@ open class UINavigationControllerRouter: Router {
         
         if let viewControllerIndex = navigationController.viewControllers.firstIndex(of: hostingController) {
             if viewControllerIndex == 0 {
-                debugPrint("⚠️ Dismissal of root route is not possible")
-                navigationController.popToRootViewController(animated: true)
+                if let parentRouter = parentRouter {
+                    parentRouter.1.isPresented = false
+                } else {
+                    debugPrint("⚠️ Dismissal of root route is not possible")
+                    navigationController.popToRootViewController(animated: true)
+                }
                 return
             }
             
@@ -228,7 +247,12 @@ open class UINavigationControllerRouter: Router {
     /// Generate the view controller (usually a hosting controller) for the given destination.
     /// - Parameter destination: A destination to route to.
     /// - Returns: A view controller for showing `destination`.
-    open func makeViewController<Target: EnvironmentDependentRoute, ThePresenter: Presenter>(for target: Target, environmentObject: Target.EnvironmentObjectDependency, using presenter: ThePresenter, routeViewId: RouteViewIdentifier) -> UIHostingController<AnyView> {
+    open func makeViewController<Target: EnvironmentDependentRoute, ThePresenter: Presenter>(
+        for target: Target,
+        environmentObject: Target.EnvironmentObjectDependency,
+        using presenter: ThePresenter,
+        routeViewId: RouteViewIdentifier
+    ) -> UIHostingController<AnyView> {
         let state = target.prepareState(environmentObject: environmentObject)
         let presenterViewModel = PresenterViewModel()
         
@@ -236,9 +260,10 @@ open class UINavigationControllerRouter: Router {
             parent: EmptyView(),
             destination: target.body(state: state),
             isPresented: isPresentedBinding(forRouteMatchingId: routeViewId, presenterViewModel: presenterViewModel)
-        ) { [unowned self] rootRoute, presentationContext in
+        ) { [unowned self] presentationContext in
             self.makeChildRouterView(
-                rootRoute: rootRoute,
+                rootRoute: target,
+                environmentObject: environmentObject,
                 presentationContext: presentationContext,
                 presenterViewModel: presenterViewModel
             )
@@ -280,14 +305,15 @@ open class UINavigationControllerRouter: Router {
         return routeHost
     }
     
-    func makeChildRouterView<RootRoute: Route>(
+    func makeChildRouterView<RootRoute: EnvironmentDependentRoute>(
         rootRoute: RootRoute,
+        environmentObject: RootRoute.EnvironmentObjectDependency,
         presentationContext: PresentationContext,
         presenterViewModel: PresenterViewModel
     ) -> AnyView {
         let router = UINavigationControllerRouter(
             root: rootRoute,
-            VoidObservableObject(),
+            environmentObject,
             parent: (self, presentationContext)
         )
         return AnyView(PresenterView(wrappedView: UINavigationControllerRouterView(router: router), viewModel: presenterViewModel))
