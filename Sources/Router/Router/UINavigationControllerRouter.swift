@@ -161,6 +161,14 @@ open class UINavigationControllerRouter: Router {
                     },
                     set: { newValue in
                         presenterViewModel.isPresented = newValue
+                        
+                        if newValue == false {
+                            // Remove the presenter from the host.
+                            DispatchQueue.main.async {
+                                // Wait until the next iteration of the run loop, for example for sheet modifiers to dismiss themselves before removing them.
+                                hostingController.rootView = host.root
+                            }
+                        }
                     }
                 )
             ) { [unowned self] presentationContext in
@@ -188,7 +196,6 @@ open class UINavigationControllerRouter: Router {
         guard let hostingController = routeHosts[id]?.hostingController else {
             if let (parentRouter, presentationContext) = parentRouter {
                 presentationContext.isPresented = false
-                #warning("When dismissing `self` as a child of `parentRouter`, make sure the current presenter is removed from the hierarchy by replacing the hierarchy with the routeHost.rootView")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     parentRouter.dismissUpTo(routeMatchesId: id)
                 }
@@ -206,7 +213,6 @@ open class UINavigationControllerRouter: Router {
         guard let hostingController = routeHosts[id]?.hostingController else {
             if let (parentRouter, presentationContext) = parentRouter {
                 presentationContext.isPresented = false
-                #warning("When dismissing `self` as a child of `parentRouter`, make sure the current presenter is removed from the hierarchy by replacing the hierarchy with the routeHost.rootView")
                 DispatchQueue.main.async {
                     parentRouter.dismissUpTo(routeMatchesId: id)
                 }
