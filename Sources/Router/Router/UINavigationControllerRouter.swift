@@ -47,8 +47,10 @@ open class UINavigationControllerRouter: Router {
     public let navigationController: UINavigationController
     let parentRouter: (Router, PresentationContext)?
     
-    /// key: `ObjectIdentifier` of the `HostingController`
     private var routeHosts: [RouteViewIdentifier: RouteHost] = [:]
+    
+    /// A reference to the presenter view models of presented child routes. Used for dismissal support.
+    private var presenterViewModels: [RouteViewIdentifier: PresenterViewModel] = [:]
     
     /// 🗑 Combine cancellables.
     private var cancellables = Set<AnyCancellable>()
@@ -151,6 +153,7 @@ open class UINavigationControllerRouter: Router {
             
             let state = target.prepareState(environmentObject: environmentObject)
             let presenterViewModel = PresenterViewModel()
+            self.presenterViewModels[targetRouteViewId] = presenterViewModel
             
             let presentationContext = PresentationContext(
                 parent: host.root,
@@ -159,15 +162,19 @@ open class UINavigationControllerRouter: Router {
                     get: {
                         presenterViewModel.isPresented
                     },
-                    set: { newValue in
+                    set: { [weak self] newValue in
                         presenterViewModel.isPresented = newValue
                         
                         if newValue == false {
+                            self?.presenterViewModels[targetRouteViewId] = nil
+                            
                             // Remove the presenter from the host.
                             DispatchQueue.main.async {
                                 // Wait until the next iteration of the run loop, for example for sheet modifiers to dismiss themselves before removing them.
                                 hostingController.rootView = host.root
                             }
+                        } else {
+                            self?.presenterViewModels[targetRouteViewId] = presenterViewModel
                         }
                     }
                 )
@@ -211,6 +218,11 @@ open class UINavigationControllerRouter: Router {
     
     public func dismissUpToIncluding(routeMatchingId id: RouteViewIdentifier) {
         guard let hostingController = routeHosts[id]?.hostingController else {
+            if let presenterViewModel = presenterViewModels[id] {
+                presenterViewModel.isPresented = false
+                return
+            }
+            
             if let (parentRouter, presentationContext) = parentRouter {
                 presentationContext.isPresented = false
                 DispatchQueue.main.async {
