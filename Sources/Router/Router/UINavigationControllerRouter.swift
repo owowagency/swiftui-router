@@ -323,12 +323,21 @@ open class UINavigationControllerRouter: Router {
         presentationContext: PresentationContext,
         presenterViewModel: PresenterViewModel
     ) -> AnyView {
-        let router = UINavigationControllerRouter(
+        let router = makeChildRouter(rootRoute: rootRoute, environmentObject: environmentObject, presentationContext: presentationContext, presenterViewModel: presenterViewModel)
+        return AnyView(PresenterView(wrappedView: UINavigationControllerRouterView(router: router), viewModel: presenterViewModel))
+    }
+    
+    open func makeChildRouter<RootRoute: EnvironmentDependentRoute>(
+        rootRoute: RootRoute,
+        environmentObject: RootRoute.EnvironmentObjectDependency,
+        presentationContext: PresentationContext,
+        presenterViewModel: PresenterViewModel
+    ) -> UINavigationControllerRouter {
+        return UINavigationControllerRouter(
             root: rootRoute,
             environmentObject,
             parent: (self, presentationContext)
         )
-        return AnyView(PresenterView(wrappedView: UINavigationControllerRouterView(router: router), viewModel: presenterViewModel))
     }
     
     public func isPresenting(routeMatchingId id: RouteViewIdentifier) -> Bool {
