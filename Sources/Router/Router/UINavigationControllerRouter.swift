@@ -81,8 +81,11 @@ open class UINavigationControllerRouter: Router {
         _ environmentObject: Target.EnvironmentObjectDependency,
         using presenter: ThePresenter
     ) -> RouteViewIdentifier where Target : EnvironmentDependentRoute, ThePresenter : Presenter {
+        if navigationController.presentedViewController != nil {
+            navigationController.dismiss(animated: true, completion: nil)
+        }
+        
         navigationController.viewControllers = []
-        navigationController.presentedViewController?.dismiss(animated: true, completion: nil)
         routeHosts.removeAll()
         return navigate(to: target, environmentObject, using: presenter)
     }
