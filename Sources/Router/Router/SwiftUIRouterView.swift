@@ -1,6 +1,7 @@
 import SwiftUI
 
 #if canImport(AppKit)
+@available(iOS 13, macOS 10.15, *)
 fileprivate struct HostingControllerRepresentable<V: View>: NSViewControllerRepresentable {
     let hostingController: HostingController<V>
     
@@ -11,6 +12,7 @@ fileprivate struct HostingControllerRepresentable<V: View>: NSViewControllerRepr
     func updateNSViewController(_ nsViewController: HostingController<V>, context: Context) { }
 }
 #elseif canImport(UIKit)
+@available(iOS 13, macOS 10.15, *)
 fileprivate struct HostingControllerRepresentable<V: View>: UIViewControllerRepresentable {
     let hostingController: NSHostingController<V>
     
@@ -23,6 +25,7 @@ fileprivate struct HostingControllerRepresentable<V: View>: UIViewControllerRepr
 #endif
 
 #if canImport(AppKit) || canImport(UIKit)
+@available(iOS 13, macOS 10.15, *)
 public struct SwiftUIRouterView: View {
     @State var router: SwiftUIRouter
     
@@ -37,6 +40,7 @@ public struct SwiftUIRouterView: View {
     }
 }
 
+@available(iOS 13, macOS 10.15, *)
 public struct SwiftUIMasterDetailRouterView<Master: View>: View {
     let makeMaster: () -> Master
     @State var router: SwiftUIRouter

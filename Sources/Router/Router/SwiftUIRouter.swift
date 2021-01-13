@@ -2,8 +2,10 @@ import SwiftUI
 import Combine
 
 #if canImport(UIKit)
+@available(iOS 13, macOS 10.15, *)
 internal typealias HostingController<V: View> = UIHostingController<V>
 #elseif canImport(AppKit)
+@available(iOS 13, macOS 10.15, *)
 internal typealias HostingController<V: View> = NSHostingController<V>
 #endif
 
@@ -11,7 +13,7 @@ internal typealias HostingController<V: View> = NSHostingController<V>
 import Combine
 import SwiftUI
 
-@available(macOS 10.15, *)
+@available(iOS 13, macOS 10.15, *)
 fileprivate final class RouteHost: Hashable {
     // MARK: State
     
@@ -73,6 +75,7 @@ fileprivate struct PresenterView<WrappedView: View>: View {
     }
 }
 
+@available(iOS 13, macOS 10.15, *)
 open class SwiftUIRouter: Router {
     internal let hostingController: HostingController<AnyView>
     let parentRouter: (Router, PresentationContext)?
@@ -184,10 +187,6 @@ open class SwiftUIRouter: Router {
             }
             
             let state = target.prepareState(environmentObject: environmentObject)
-            
-            print(host.presenterViewModel.isPresented)
-            print(host.presenterViewModel.nestedView)
-            print(host.root)
             
             let presentationContext = PresentationContext(
                 parent: host.root,
