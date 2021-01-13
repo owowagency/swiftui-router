@@ -92,7 +92,7 @@ open class SwiftUIRouter: Router {
         _ environmentObject: Root.EnvironmentObjectDependency,
         parent: (Router, PresentationContext)? = nil
     ) where Root: EnvironmentDependentRoute {
-        self.hostingController =  NSHostingController(rootView: AnyView(EmptyView()))
+        self.hostingController =  HostingController(rootView: AnyView(EmptyView()))
         self.parentRouter = parent
         replaceRoot(with: root, environmentObject)
     }
@@ -100,7 +100,7 @@ open class SwiftUIRouter: Router {
     public init<Root>(
         root: Root
     ) where Root: Route {
-        self.hostingController =  NSHostingController(rootView: AnyView(EmptyView()))
+        self.hostingController =  HostingController(rootView: AnyView(EmptyView()))
         self.parentRouter = nil
         replaceRoot(with: root)
     }
@@ -351,14 +351,14 @@ open class SwiftUIRouter: Router {
         presentationContext: PresentationContext,
         presenterViewModel: SwiftUIPresenterViewModel
     ) -> AnyView {
-        let router = MacRouter(
+        let router = SwiftUIRouter(
             root: rootRoute,
             environmentObject,
             parent: (self, presentationContext)
         )
         
         return AnyView(PresenterView(
-            wrappedView: MacRouterView(router: router),
+            wrappedView: SwiftUIRouterView(router: router),
             viewModel: presenterViewModel
         ))
     }

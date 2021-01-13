@@ -14,7 +14,7 @@ fileprivate struct HostingControllerRepresentable<V: View>: NSViewControllerRepr
 #elseif canImport(UIKit)
 @available(iOS 13, macOS 10.15, *)
 fileprivate struct HostingControllerRepresentable<V: View>: UIViewControllerRepresentable {
-    let hostingController: NSHostingController<V>
+    let hostingController: HostingController<V>
     
     func makeUIViewController(context: Context) -> HostingController<V> {
         hostingController
