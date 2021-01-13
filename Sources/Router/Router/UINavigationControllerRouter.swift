@@ -112,7 +112,7 @@ open class UINavigationControllerRouter: Router {
                 debugPrint("⚠️ Presenting route host for replacing presenter \(presenter) as root view, because an eligible view for presentation was not found.")
                 
                 let id = RouteViewIdentifier()
-                let viewController = makeView(for: target, environmentObject: environmentObject, using: presenter, routeViewId: id)
+                let viewController = makeViewController(for: target, environmentObject: environmentObject, using: presenter, routeViewId: id)
                 let routeHost = registerHostingController(hostingController: viewController, byRouteViewId: id)
                 return (routeHost, viewController)
             }
@@ -121,7 +121,7 @@ open class UINavigationControllerRouter: Router {
         let targetRouteViewId = RouteViewIdentifier()
         
         if !presenter.replacesParent { // Push 💨
-            let viewController = makeView(for: target, environmentObject: environmentObject, using: presenter, routeViewId: targetRouteViewId)
+            let viewController = makeViewController(for: target, environmentObject: environmentObject, using: presenter, routeViewId: targetRouteViewId)
             registerHostingController(hostingController: viewController, byRouteViewId: targetRouteViewId)
             
             if navigationController.viewControllers.isEmpty {
@@ -135,7 +135,7 @@ open class UINavigationControllerRouter: Router {
             let host: RouteHost
             let hostingController: UIHostingController<AnyView>
             
-            if let source = source {
+            if let source = source, source != .none {
                 if let theHost = routeHosts[source], let viewController = theHost.hostingController {
                     host = theHost
                     hostingController = viewController
@@ -341,7 +341,7 @@ open class UINavigationControllerRouter: Router {
 }
 
 @available(iOS 13, macOS 10.15, *)
-public final class PresenterViewModel: ObservableObject {
+public class PresenterViewModel: ObservableObject {
     @Published internal var isPresented = true
     
     internal init() {}

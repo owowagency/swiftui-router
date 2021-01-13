@@ -13,6 +13,10 @@ public struct StackRouterView: View {
         self._router = State(wrappedValue: UINavigationControllerRouter(root: root, dependency))
     }
     
+    public init(router: UINavigationControllerRouter) {
+        self._router = State(wrappedValue: router)
+    }
+    
     public var body: some View {
         UINavigationControllerRouterView(router: router)
     }
