@@ -193,7 +193,7 @@ open class UINavigationControllerRouter: Router {
             presenterViewModel.$isPresented
                 .first { $0 == false }
                 .sink { [weak hostingController] _ in
-                    hostingController?.rootView = AnyView(presenter.body(with: presentationContext)) }
+                    hostingController?.rootView = AnyView(host.root) }
                 .store(in: &cancellables)
             
             hostingController.rootView = AnyView(presenter.body(with: presentationContext))
