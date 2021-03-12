@@ -8,8 +8,18 @@ final class RouteHost: Hashable {
     
     // MARK: State
     
-    let root: AnyView
+    private let root: AnyView
     weak var hostingController: UIHostingController<AnyView>?
+    
+    func root<Sibling: View>(sibling: Sibling) -> AnyView {
+        let stack = ZStack {
+            AnyView(sibling)
+            
+            self.root
+        }
+        
+        return AnyView(stack)
+    }
     
     // MARK: Init
     
@@ -39,7 +49,6 @@ extension Dictionary where Value == RouteHost {
         self = self.filter { $0.value.hostingController != nil }
     }
 }
-
 
 /// A `Router` implementation that pushes routed views onto a `UINavigationController`.
 @available(iOS 13, *)
@@ -126,7 +135,8 @@ open class UINavigationControllerRouter: Router {
         
         let targetRouteViewId = RouteViewIdentifier()
         
-        if !presenter.replacesParent { // Push 💨
+        switch presenter.presentationMode {
+        case .normal: // Push 💨
             let viewController = makeViewController(for: target, environmentObject: environmentObject, using: presenter, routeViewId: targetRouteViewId)
             registerHostingController(hostingController: viewController, byRouteViewId: targetRouteViewId)
             
@@ -137,7 +147,7 @@ open class UINavigationControllerRouter: Router {
             } else {
                 navigationController.pushViewController(viewController, animated: true)
             }
-        } else {
+        case .replaceParent, .sibling:
             let host: RouteHost
             let hostingController: UIHostingController<AnyView>
             
@@ -158,30 +168,28 @@ open class UINavigationControllerRouter: Router {
             let presenterViewModel = PresenterViewModel()
             self.presenterViewModels[targetRouteViewId] = presenterViewModel
             
-            let presentationContext = PresentationContext(
-                parent: host.root,
-                destination: AnyView(adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId)),
-                isPresented: Binding(
-                    get: {
-                        presenterViewModel.isPresented
-                    },
-                    set: { [weak self] newValue in
-                        presenterViewModel.isPresented = newValue
+            let isPresentedBinding: Binding<Bool> = Binding(
+                get: {
+                    presenterViewModel.isPresented
+                },
+                set: { [weak self] newValue in
+                    presenterViewModel.isPresented = newValue
+                    
+                    if newValue == false {
+                        self?.presenterViewModels[targetRouteViewId] = nil
                         
-                        if newValue == false {
-                            self?.presenterViewModels[targetRouteViewId] = nil
-                            
-                            // Remove the presenter from the host.
-                            DispatchQueue.main.async {
-                                // Wait until the next iteration of the run loop, for example for sheet modifiers to dismiss themselves before removing them.
-                                hostingController.rootView = host.root
-                            }
-                        } else {
-                            self?.presenterViewModels[targetRouteViewId] = presenterViewModel
+                        // Remove the presenter from the host.
+                        DispatchQueue.main.async {
+                            // Wait until the next iteration of the run loop, for example for sheet modifiers to dismiss themselves before removing them.
+                            hostingController.rootView = AnyView(host.root(sibling: EmptyView()))
                         }
+                    } else {
+                        self?.presenterViewModels[targetRouteViewId] = presenterViewModel
                     }
-                )
-            ) { [unowned self] presentationContext in
+                }
+            )
+            
+            let makeRouter: PresentationContext.RouterViewFactory = { [unowned self] presentationContext in
                 self.makeChildRouterView(
                     rootRoute: target,
                     environmentObject: environmentObject,
@@ -190,13 +198,34 @@ open class UINavigationControllerRouter: Router {
                 )
             }
             
+            let presentationContext: PresentationContext
+            
+            switch presenter.presentationMode {
+            case .replaceParent:
+                presentationContext = PresentationContext(
+                    parent: host.root(sibling: EmptyView()),
+                    destination: AnyView(adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId)),
+                    isPresented: isPresentedBinding,
+                    makeRouter: makeRouter
+                )
+            case .sibling:
+                presentationContext = PresentationContext(
+                    parent: EmptyView(),
+                    destination: adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId),
+                    isPresented: isPresentedBinding,
+                    makeRouter: makeRouter
+                )
+            case .normal:
+                fatalError("Internal inconsistency")
+            }
+            
             presenterViewModel.$isPresented
                 .first { $0 == false }
                 .sink { [weak hostingController] _ in
-                    hostingController?.rootView = AnyView(host.root) }
+                    hostingController?.rootView = AnyView(host.root(sibling: EmptyView())) }
                 .store(in: &cancellables)
             
-            hostingController.rootView = AnyView(presenter.body(with: presentationContext))
+            hostingController.rootView = AnyView(host.root(sibling: presenter.body(with: presentationContext)))
         }
         
         return targetRouteViewId
@@ -301,11 +330,13 @@ open class UINavigationControllerRouter: Router {
     }
     
     func adjustView<Input: View, Dependency: ObservableObject>(_ view: Input, environmentObject: Dependency, routeViewId: RouteViewIdentifier) -> some View {
-        view
+        let content = view
             .environment(\.router, self)
             .environmentObject(VoidObservableObject())
             .environmentObject(environmentObject)
-            .environment(\.routeViewId, routeViewId)
+
+        return RouteViewIdView(routeViewId: routeViewId, content: content)
+            .equatable()
             .id(routeViewId)
     }
     
