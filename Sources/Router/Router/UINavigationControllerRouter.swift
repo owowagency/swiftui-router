@@ -327,14 +327,11 @@ open class UINavigationControllerRouter: Router {
     }
     
     func adjustView<Input: View, Dependency: ObservableObject>(_ view: Input, environmentObject: Dependency, routeViewId: RouteViewIdentifier) -> some View {
-        let content = view
+        view
             .environment(\.router, self)
             .environmentObject(VoidObservableObject())
             .environmentObject(environmentObject)
-
-        return RouteViewIdView(routeViewId: routeViewId, content: content)
-            .equatable()
-            .id(routeViewId)
+            .environment(\.routeViewId, routeViewId)
     }
     
     /// Takes a `View` and creates a hosting controller for it.
