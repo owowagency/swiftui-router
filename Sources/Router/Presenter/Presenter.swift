@@ -3,9 +3,15 @@ import SwiftUI
 @available(iOS 13, macOS 10.15, *)
 public protocol Presenter {
     associatedtype Body: View
-    var replacesParent: Bool { get }
+    var presentationMode: RoutePresentationMode { get }
     
     func body(with context: PresentationContext) -> Body
+}
+
+public enum RoutePresentationMode {
+    case normal
+    case replaceParent
+    case sibling
 }
 
 @available(iOS 13, macOS 10.15, *)
