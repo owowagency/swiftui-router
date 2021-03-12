@@ -11,25 +11,20 @@ final class RouteHost: Hashable {
     private let root: AnyView
     weak var hostingController: UIHostingController<AnyView>?
     
-    func root<Sibling: View>(sibling: Sibling) -> AnyView {
-        let stack = ZStack {
-            AnyView(sibling)
-            
-            self.root
-        }
-        
-        return AnyView(stack)
+    func root<Sibling: View>(sibling: Sibling) -> some View {
+        self.root
+            .overlay(AnyView(sibling))
     }
     
     // MARK: Init
     
-    init(root: AnyView, hostingController: UIHostingController<AnyView>) {
-        self.root = root
+    init(hostingController: UIHostingController<AnyView>) {
+        self.root = hostingController.rootView
         self.hostingController = hostingController
-    }
-    
-    func reset() {
-        hostingController?.rootView = root
+        
+        // Doing this ensures that the root view is of a stable type and structure, preventing
+        // SwiftUI from resetting everything when presenting a sibling view.
+        hostingController.rootView = AnyView(self.root(sibling: EmptyView()))
     }
     
     // MARK: Equatable / hashable
@@ -208,6 +203,8 @@ open class UINavigationControllerRouter: Router {
                     isPresented: isPresentedBinding,
                     makeRouter: makeRouter
                 )
+                
+                hostingController.rootView = AnyView(presenter.body(with: presentationContext))
             case .sibling:
                 presentationContext = PresentationContext(
                     parent: EmptyView(),
@@ -215,6 +212,8 @@ open class UINavigationControllerRouter: Router {
                     isPresented: isPresentedBinding,
                     makeRouter: makeRouter
                 )
+                
+                hostingController.rootView = AnyView(host.root(sibling: presenter.body(with: presentationContext)))
             case .normal:
                 fatalError("Internal inconsistency")
             }
@@ -224,8 +223,6 @@ open class UINavigationControllerRouter: Router {
                 .sink { [weak hostingController] _ in
                     hostingController?.rootView = AnyView(host.root(sibling: EmptyView())) }
                 .store(in: &cancellables)
-            
-            hostingController.rootView = AnyView(host.root(sibling: presenter.body(with: presentationContext)))
         }
         
         return targetRouteViewId
@@ -351,7 +348,7 @@ open class UINavigationControllerRouter: Router {
     func registerHostingController(hostingController: UIHostingController<AnyView>, byRouteViewId routeViewId: RouteViewIdentifier) -> RouteHost {
         assert(!routeHosts.values.contains { $0.hostingController === hostingController })
         
-        let routeHost = RouteHost(root: hostingController.rootView, hostingController: hostingController)
+        let routeHost = RouteHost(hostingController: hostingController)
         routeHosts[routeViewId] = routeHost
         
         return routeHost
