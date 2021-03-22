@@ -186,7 +186,11 @@ open class UINavigationControllerRouter: Router {
             
             let makeRouter: PresentationContext.RouterViewFactory = { [unowned self] presentationContext in
                 self.makeChildRouterView(
-                    rootRoute: target,
+                    rootRoute: SimpleRoute(
+                        dependency: Target.EnvironmentObjectDependency.self,
+                        prepareState: { _ in state },
+                        body: target.body
+                    ),
                     environmentObject: environmentObject,
                     presentationContext: presentationContext,
                     presenterViewModel: presenterViewModel
