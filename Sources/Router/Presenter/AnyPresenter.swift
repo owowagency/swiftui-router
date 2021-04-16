@@ -2,11 +2,11 @@ import SwiftUI
 
 @available(iOS 13, macOS 10.15, *)
 public struct AnyPresenter: Presenter {
-    private var _replacesParent: () -> Bool
+    private var _presentationMode: () -> RoutePresentationMode
     private var _body: (PresentationContext) -> AnyView
     
     public init<P: Presenter>(_ presenter: P) {
-        self._replacesParent = { presenter.replacesParent }
+        self._presentationMode = { presenter.presentationMode }
         self._body = { AnyView(presenter.body(with: $0)) }
     }
     
@@ -14,6 +14,6 @@ public struct AnyPresenter: Presenter {
         _body(context)
     }
     
-    public var replacesParent: Bool { _replacesParent() }
+    public var presentationMode: RoutePresentationMode { _presentationMode() }
 }
 
