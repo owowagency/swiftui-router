@@ -232,6 +232,11 @@ open class UINavigationControllerRouter: Router {
         return targetRouteViewId
     }
     
+    /// Dismiss all up to, but not including, the root route
+    public func dismissToRoot() {
+        navigationController.popToRootViewController(animated: true)
+    }
+    
     /// Dismisses up to, but not including, the given `id`, so the route with that identifier becomes the topmost route.
     /// - Parameter id: The `id` of the route to dismiss up to.
     public func dismissUpTo(routeMatchesId id: RouteViewIdentifier) {
@@ -247,7 +252,6 @@ open class UINavigationControllerRouter: Router {
             debugPrint("⚠️ Cannot dismiss route that's not in the hierarchy")
             return
         }
-        
         navigationController.popToViewController(hostingController, animated: true)
         
         if hostingController.presentedViewController != nil {

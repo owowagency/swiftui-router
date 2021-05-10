@@ -53,6 +53,9 @@ public protocol Router {
     /// The actual dismissal behavior can differ between router implemetations.
     func dismissUpToIncluding(routeMatchingId id: RouteViewIdentifier)
     
+    /// Dismiss all up to, but not including, the root route
+    func dismissToRoot()
+    
     // MARK: - Querying the router
     
     /// Returns `true` if the router is currently presenting a route matching `id`.
