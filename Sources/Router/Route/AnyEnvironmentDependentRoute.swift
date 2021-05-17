@@ -47,3 +47,14 @@ public struct AnyEnvironmentDependentRoute<EnvironmentObjectDependency: Observab
         _body(state)
     }
 }
+
+@available(iOS 13, macOS 10.15, *)
+extension AnyEnvironmentDependentRoute where EnvironmentObjectDependency == VoidObservableObject {
+    /// Create an instance that type-erases `route`.
+    ///
+    /// This initializer variant supports type-erasing a route that isn't dependent on the environment to one that is.
+    public init<R>(_ route: R) where R: Route {
+        self._prepareState = { _ in route.prepareState(environmentObject: VoidObservableObject()) }
+        self._body = Self.makeBody(route: route)
+    }
+}
