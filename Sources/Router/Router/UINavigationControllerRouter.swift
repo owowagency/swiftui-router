@@ -157,6 +157,13 @@ open class UINavigationControllerRouter: Router {
                 }
             } else {
                 (host, hostingController) = topLevelRouteHostOrNew()
+                
+                if navigationController.viewControllers.isEmpty {
+                    navigationController.viewControllers = [
+                        hostingController
+                    ]
+                    return targetRouteViewId
+                }
             }
             
             let state = target.prepareState(environmentObject: environmentObject)
@@ -205,7 +212,7 @@ open class UINavigationControllerRouter: Router {
                 )
                 
                 hostingController.rootView = AnyView(presenter.body(with: presentationContext))
-            case .sibling:
+            case .sibling: // Overlay parent with child
                 presentationContext = PresentationContext(
                     parent: EmptyView(),
                     destination: adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId),

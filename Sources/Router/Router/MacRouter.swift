@@ -7,12 +7,17 @@ fileprivate final class RouteHost: Hashable {
     
     // MARK: State
     
-    let root: AnyView
+    let rootView: AnyView
+    
+    func root<Sibling: View>(sibling: Sibling) -> some View {
+        self.rootView
+            .overlay(AnyView(sibling))
+    }
     
     // MARK: Init
     
-    init(root: AnyView) {
-        self.root = root
+    init(rootView: AnyView) {
+        self.rootView = rootView
     }
     
     // MARK: Equatable / hashable
@@ -56,21 +61,21 @@ open class MacRouter: Router {
     private var cancellables = Set<AnyCancellable>()
     
     public init<Root>(
-        root: Root,
+        rootView: Root,
         _ environmentObject: Root.EnvironmentObjectDependency,
         parent: (Router, PresentationContext)? = nil
     ) where Root: EnvironmentDependentRoute {
         self.hostingController =  NSHostingController(rootView: AnyView(EmptyView()))
         self.parentRouter = parent
-        replaceRoot(with: root, environmentObject)
+        replaceRoot(with: rootView, environmentObject)
     }
     
     public init<Root>(
-        root: Root
+        rootView: Root
     ) where Root: Route {
         self.hostingController =  NSHostingController(rootView: AnyView(EmptyView()))
         self.parentRouter = nil
-        replaceRoot(with: root)
+        replaceRoot(with: rootView)
     }
     
     // MARK: Root view replacement
@@ -121,11 +126,12 @@ open class MacRouter: Router {
         
         let targetRouteViewId = RouteViewIdentifier()
         
-        if !presenter.replacesParent { // Push 💨
+        switch presenter.presentationMode {
+        case .normal: // Push 💨
             let view = makeView(for: target, environmentObject: environmentObject, using: presenter, routeViewId: targetRouteViewId)
             registerRouteHost(view: view, byRouteViewId: targetRouteViewId)
             hostingController.rootView = view
-        } else {
+        case .replaceParent, .sibling:
             let host: RouteHost
             
             if let source = source, source != .none {
@@ -142,19 +148,18 @@ open class MacRouter: Router {
             
             let state = target.prepareState(environmentObject: environmentObject)
             let presenterViewModel = PresenterViewModel()
+            let presentationContext: PresentationContext
             
-            let presentationContext = PresentationContext(
-                parent: host.root,
-                destination: AnyView(adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId)),
-                isPresented: Binding(
-                    get: {
-                        presenterViewModel.isPresented
-                    },
-                    set: { newValue in
-                        presenterViewModel.isPresented = newValue
-                    }
-                )
-            ) { [unowned self] presentationContext in
+            let isPresentedBinding = Binding<Bool>(
+                get: {
+                    presenterViewModel.isPresented
+                },
+                set: { newValue in
+                    presenterViewModel.isPresented = newValue
+                }
+            )
+            
+            let makeRouter: PresentationContext.RouterViewFactory = { [unowned self] presentationContext in
                 self.makeChildRouterView(
                     rootRoute: target,
                     environmentObject: environmentObject,
@@ -163,15 +168,39 @@ open class MacRouter: Router {
                 )
             }
             
+            switch presenter.presentationMode {
+            case .replaceParent:
+                presentationContext = PresentationContext(
+                    parent: host.root(sibling: EmptyView()),
+                    destination: AnyView(adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId)),
+                    isPresented: isPresentedBinding,
+                    makeRouter: makeRouter
+                )
+                
+                let view = AnyView(presenter.body(with: presentationContext))
+                registerRouteHost(view: view, byRouteViewId: targetRouteViewId)
+                hostingController.rootView = view
+            case .sibling:
+                presentationContext = PresentationContext(
+                    parent: EmptyView(),
+                    destination: adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId),
+                    isPresented: isPresentedBinding,
+                    makeRouter: makeRouter
+                )
+                
+                let view = AnyView(presenter.body(with: presentationContext))
+                registerRouteHost(view: view, byRouteViewId: targetRouteViewId)
+                
+                hostingController.rootView = AnyView(host.root(sibling: presenter.body(with: presentationContext)))
+            case .normal:
+                fatalError("Internal inconsistency")
+            }
+            
             presenterViewModel.$isPresented
                 .first { $0 == false }
                 .sink { [weak hostingController] _ in
                     hostingController?.rootView = AnyView(presenter.body(with: presentationContext)) }
                 .store(in: &cancellables)
-            
-            let view = AnyView(presenter.body(with: presentationContext))
-            registerRouteHost(view: view, byRouteViewId: targetRouteViewId)
-            hostingController.rootView = view
         }
         
         return targetRouteViewId
@@ -196,7 +225,7 @@ open class MacRouter: Router {
             
             if id == route.key {
                 // Found the route we're looking for, but this is up to not including
-                if let newRoot = stack.last?.root {
+                if let newRoot = stack.last?.rootView {
                     hostingController.rootView = newRoot
                 }
                 return
@@ -229,7 +258,7 @@ open class MacRouter: Router {
             
             if id == route.key {
                 // Found the route we're looking for, and this is up to AND including
-                if let newRoot = stack.last?.root {
+                if let newRoot = stack.last?.rootView {
                     hostingController.rootView = newRoot
                 }
                 return
@@ -277,7 +306,7 @@ open class MacRouter: Router {
     
     @discardableResult
     fileprivate func registerRouteHost(view: AnyView, byRouteViewId routeViewId: RouteViewIdentifier) -> RouteHost {
-        let routeHost = RouteHost(root: view)
+        let routeHost = RouteHost(rootView: view)
         routeHosts[routeViewId] = routeHost
         stack.append(routeHost)
         
@@ -291,7 +320,7 @@ open class MacRouter: Router {
         presenterViewModel: PresenterViewModel
     ) -> AnyView {
         let router = MacRouter(
-            root: rootRoute,
+            rootView: rootRoute,
             environmentObject,
             parent: (self, presentationContext)
         )

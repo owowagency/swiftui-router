@@ -17,13 +17,19 @@ import SwiftUI
 fileprivate final class RouteHost: Hashable {
     // MARK: State
     
-    let root: AnyView
+    let rootView: AnyView
+    
+    func root<Sibling: View>(sibling: Sibling) -> some View {
+        self.rootView
+            .overlay(AnyView(sibling))
+    }
+    
     let presenterViewModel: SwiftUIPresenterViewModel
     
     // MARK: Init
     
-    init(root: AnyView, presenterViewModel: SwiftUIPresenterViewModel) {
-        self.root = root
+    init(rootView: AnyView, presenterViewModel: SwiftUIPresenterViewModel) {
+        self.rootView = rootView
         self.presenterViewModel = presenterViewModel
     }
     
@@ -161,7 +167,8 @@ open class SwiftUIRouter: Router {
         
         let targetRouteViewId = RouteViewIdentifier()
         
-        if !presenter.replacesParent { // Push 💨
+        switch presenter.presentationMode {
+        case .normal: // Push 💨
             let view = makeView(
                 for: target,
                 environmentObject: environmentObject,
@@ -171,7 +178,7 @@ open class SwiftUIRouter: Router {
             )
             registerRouteHost(view: view, presenterViewModel: presenterViewModel, byRouteViewId: targetRouteViewId)
             hostingController.rootView = view
-        } else {
+        case .replaceParent, .sibling:
             let host: RouteHost
             
             if let source = source, source != .none {
@@ -187,26 +194,18 @@ open class SwiftUIRouter: Router {
             }
             
             let state = target.prepareState(environmentObject: environmentObject)
+            let presentationContext: PresentationContext
             
-            let presentationContext = PresentationContext(
-                parent: host.root,
-                destination: AnyView(
-                    adjustView(
-                        target.body(state: state),
-                        presenterViewModel: presenterViewModel,
-                        environmentObject: environmentObject,
-                        routeViewId: targetRouteViewId
-                    )
-                ),
-                isPresented: Binding(
-                    get: {
-                        presenterViewModel.isPresented
-                    },
-                    set: { newValue in
-                        presenterViewModel.isPresented = newValue
-                    }
-                )
-            ) { [unowned self] presentationContext in
+            let isPresentedBinding = Binding<Bool>(
+                get: {
+                    presenterViewModel.isPresented
+                },
+                set: { newValue in
+                    presenterViewModel.isPresented = newValue
+                }
+            )
+            
+            let makeRouter: PresentationContext.RouterViewFactory = { [unowned self] presentationContext in
                 self.makeChildRouterView(
                     rootRoute: target,
                     environmentObject: environmentObject,
@@ -215,15 +214,52 @@ open class SwiftUIRouter: Router {
                 )
             }
             
+            switch presenter.presentationMode {
+            case .replaceParent:
+                presentationContext = PresentationContext(
+                    parent: host.rootView,
+                    destination: AnyView(
+                        adjustView(
+                            target.body(state: state),
+                            presenterViewModel: presenterViewModel,
+                            environmentObject: environmentObject,
+                            routeViewId: targetRouteViewId
+                        )
+                    ),
+                    isPresented: Binding(
+                        get: {
+                            presenterViewModel.isPresented
+                        },
+                        set: { newValue in
+                            presenterViewModel.isPresented = newValue
+                        }
+                    ),
+                    makeRouter: makeRouter
+                )
+                
+                let view = AnyView(presenter.body(with: presentationContext))
+                registerRouteHost(view: view, presenterViewModel: presenterViewModel, byRouteViewId: targetRouteViewId)
+                host.presenterViewModel.nestedView?.wrappedValue = view
+            case .sibling:
+                presentationContext = PresentationContext(
+                    parent: EmptyView(),
+                    destination: adjustView(target.body(state: state), presenterViewModel: presenterViewModel, environmentObject: environmentObject, routeViewId: targetRouteViewId),
+                    isPresented: isPresentedBinding,
+                    makeRouter: makeRouter
+                )
+                
+                let view = AnyView(presenter.body(with: presentationContext))
+                registerRouteHost(view: view, presenterViewModel: presenterViewModel, byRouteViewId: targetRouteViewId)
+                host.presenterViewModel.nestedView?.wrappedValue = view
+            case .normal:
+                fatalError("Internal inconsistency")
+            }
+            
             presenterViewModel.$isPresented
                 .first { $0 == false }
                 .sink { [weak hostingController] _ in
                     hostingController?.rootView = AnyView(presenter.body(with: presentationContext)) }
                 .store(in: &cancellables)
-            
-            let view = AnyView(presenter.body(with: presentationContext))
-            registerRouteHost(view: view, presenterViewModel: presenterViewModel, byRouteViewId: targetRouteViewId)
-            host.presenterViewModel.nestedView?.wrappedValue = view
         }
         
         return targetRouteViewId
@@ -248,7 +284,7 @@ open class SwiftUIRouter: Router {
             
             if id == route.key {
                 // Found the route we're looking for, but this is up to not including
-                if let newRoot = stack.last?.root {
+                if let newRoot = stack.last?.rootView {
                     hostingController.rootView = newRoot
                 }
                 return
@@ -281,7 +317,7 @@ open class SwiftUIRouter: Router {
             
             if id == route.key {
                 // Found the route we're looking for, and this is up to AND including
-                if let newRoot = stack.last?.root {
+                if let newRoot = stack.last?.rootView {
                     hostingController.rootView = newRoot
                 }
                 return
@@ -338,7 +374,7 @@ open class SwiftUIRouter: Router {
     
     @discardableResult
     fileprivate func registerRouteHost(view: AnyView, presenterViewModel: SwiftUIPresenterViewModel, byRouteViewId routeViewId: RouteViewIdentifier) -> RouteHost {
-        let routeHost = RouteHost(root: view, presenterViewModel: presenterViewModel)
+        let routeHost = RouteHost(rootView: view, presenterViewModel: presenterViewModel)
         routeHosts[routeViewId] = routeHost
         stack.append(routeHost)
         
