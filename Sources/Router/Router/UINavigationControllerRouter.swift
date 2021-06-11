@@ -4,7 +4,7 @@ import SwiftUI
 import Combine
 
 @available(iOS 13, macOS 10.15, *)
-final class RouteHost: Hashable {
+fileprivate final class RouteHost: Hashable {
     
     // MARK: State
     
@@ -146,7 +146,7 @@ open class UINavigationControllerRouter: Router {
             let host: RouteHost
             let hostingController: UIHostingController<AnyView>
             
-            if let source = source {
+            if let source = source, source != .none {
                 if let theHost = routeHosts[source], let viewController = theHost.hostingController {
                     host = theHost
                     hostingController = viewController
@@ -157,6 +157,13 @@ open class UINavigationControllerRouter: Router {
                 }
             } else {
                 (host, hostingController) = topLevelRouteHostOrNew()
+                
+                if navigationController.viewControllers.isEmpty {
+                    navigationController.viewControllers = [
+                        hostingController
+                    ]
+                    return targetRouteViewId
+                }
             }
             
             let state = target.prepareState(environmentObject: environmentObject)
@@ -209,7 +216,7 @@ open class UINavigationControllerRouter: Router {
                 )
                 
                 hostingController.rootView = AnyView(presenter.body(with: presentationContext))
-            case .sibling:
+            case .sibling: // Overlay parent with child
                 presentationContext = PresentationContext(
                     parent: EmptyView(),
                     destination: adjustView(target.body(state: state), environmentObject: environmentObject, routeViewId: targetRouteViewId),
@@ -350,7 +357,7 @@ open class UINavigationControllerRouter: Router {
     }
     
     @discardableResult
-    func registerHostingController(hostingController: UIHostingController<AnyView>, byRouteViewId routeViewId: RouteViewIdentifier) -> RouteHost {
+    fileprivate func registerHostingController(hostingController: UIHostingController<AnyView>, byRouteViewId routeViewId: RouteViewIdentifier) -> RouteHost {
         assert(!routeHosts.values.contains { $0.hostingController === hostingController })
         
         let routeHost = RouteHost(hostingController: hostingController)
@@ -405,7 +412,7 @@ open class UINavigationControllerRouter: Router {
 }
 
 @available(iOS 13, macOS 10.15, *)
-public final class PresenterViewModel: ObservableObject {
+public class PresenterViewModel: ObservableObject {
     @Published internal var isPresented = true
     
     internal init() {}

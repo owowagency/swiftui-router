@@ -1,6 +1,7 @@
 import SwiftUI
 
-@available(iOS 13, macOS 10.15, *)
+#if canImport(UIKit)
+@available(iOS 13, *)
 public struct UINavigationControllerRouterView: UIViewControllerRepresentable {
     public let router: UINavigationControllerRouter
     
@@ -14,3 +15,4 @@ public struct UINavigationControllerRouterView: UIViewControllerRepresentable {
     
     public func updateUIViewController(_ uiViewController: UINavigationController, context: Context) {}
 }
+#endif
