@@ -237,12 +237,12 @@ open class UINavigationControllerRouter: Router {
     
     /// Dismisses up to, but not including, the given `id`, so the route with that identifier becomes the topmost route.
     /// - Parameter id: The `id` of the route to dismiss up to.
-    public func dismissUpTo(routeMatchesId id: RouteViewIdentifier) {
+    public func dismissUpTo(routeMatchingId id: RouteViewIdentifier) {
         guard let hostingController = routeHosts[id]?.hostingController else {
             if let (parentRouter, presentationContext) = parentRouter {
                 presentationContext.isPresented = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    parentRouter.dismissUpTo(routeMatchesId: id)
+                    parentRouter.dismissUpTo(routeMatchingId: id)
                 }
                 return
             }
@@ -268,7 +268,7 @@ open class UINavigationControllerRouter: Router {
             if let (parentRouter, presentationContext) = parentRouter {
                 presentationContext.isPresented = false
                 DispatchQueue.main.async {
-                    parentRouter.dismissUpTo(routeMatchesId: id)
+                    parentRouter.dismissUpTo(routeMatchingId: id)
                 }
                 return
             }
@@ -335,7 +335,7 @@ open class UINavigationControllerRouter: Router {
     
     func adjustView<Input: View, Dependency: ObservableObject>(_ view: Input, environmentObject: Dependency, routeViewId: RouteViewIdentifier) -> some View {
         view
-            .environment(\.router, self)
+            .environment(\.router, WeakRouter(_router: self))
             .environmentObject(VoidObservableObject())
             .environmentObject(environmentObject)
             .environment(\.routeViewId, routeViewId)

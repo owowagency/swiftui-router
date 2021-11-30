@@ -27,10 +27,10 @@ fileprivate struct HostingControllerRepresentable<V: View>: UIViewControllerRepr
 #if canImport(AppKit) || canImport(UIKit)
 @available(iOS 13, macOS 10.15, *)
 public struct SwiftUIRouterView: View {
-    @State var router: SwiftUIRouter
+    let router: SwiftUIRouter
     
     public init(router: SwiftUIRouter) {
-        self._router = State(wrappedValue: router)
+        self.router = router
     }
     
     public var body: some View {
@@ -43,10 +43,10 @@ public struct SwiftUIRouterView: View {
 @available(iOS 13, macOS 10.15, *)
 public struct SwiftUIMasterDetailRouterView<Master: View>: View {
     let makeMaster: () -> Master
-    @State var router: SwiftUIRouter
+    let router: SwiftUIRouter
     
     public init(router: SwiftUIRouter, @ViewBuilder makeMaster: @escaping () -> Master) {
-        self._router = State(wrappedValue: router)
+        self.router = router
         self.makeMaster = makeMaster
     }
     
@@ -54,7 +54,7 @@ public struct SwiftUIMasterDetailRouterView<Master: View>: View {
         NavigationView {
             makeMaster()
                 .environmentObject(VoidObservableObject())
-                .environment(\.router, router)
+                .environment(\.router, WeakRouter(_router: router))
             
             HostingControllerRepresentable(hostingController: router.hostingController)
         }

@@ -44,8 +44,10 @@ fileprivate struct PresenterView<WrappedView: View>: View {
     @ObservedObject var viewModel: PresenterViewModel
     
     var body: some View {
-        // Make sure SwiftUI registers the EnvironmentObject dependency for observation
-        wrappedView.id(viewModel.isPresented)
+        if viewModel.isPresented {
+            // Make sure SwiftUI registers the EnvironmentObject dependency for observation
+            wrappedView.id(viewModel.isPresented)
+        }
     }
 }
 
@@ -119,8 +121,7 @@ open class MacRouter: Router {
                 
                 let id = RouteViewIdentifier()
                 let view = makeView(for: target, environmentObject: environmentObject, using: presenter, routeViewId: id)
-                let routeHost = registerRouteHost(view: view, byRouteViewId: id)
-                return routeHost
+                return registerRouteHost(view: view, byRouteViewId: id, replaceParent: presenter.presentationMode == .replaceParent)
             }
         }
         
@@ -131,7 +132,11 @@ open class MacRouter: Router {
             let view = makeView(for: target, environmentObject: environmentObject, using: presenter, routeViewId: targetRouteViewId)
             registerRouteHost(view: view, byRouteViewId: targetRouteViewId)
             hostingController.rootView = view
-        case .replaceParent, .sibling:
+        case .replaceParent:
+            let view = makeView(for: target, environmentObject: environmentObject, using: presenter, routeViewId: targetRouteViewId)
+            registerRouteHost(view: view, byRouteViewId: targetRouteViewId, replaceParent: false)
+            hostingController.rootView = view
+        case .sibling:
             let host: RouteHost
             
             if let source = source, source != .none {
@@ -206,7 +211,7 @@ open class MacRouter: Router {
         return targetRouteViewId
     }
     
-    public func dismissUpTo(routeMatchesId id: RouteViewIdentifier) {
+    public func dismissUpTo(routeMatchingId id: RouteViewIdentifier) {
         while !routeHosts.isEmpty, let lastRouteHost = stack.last {
             guard
                 let route = routeHosts.first(where: { $0.value == lastRouteHost })
@@ -214,7 +219,7 @@ open class MacRouter: Router {
                 if let (parentRouter, presentationContext) = parentRouter {
                     presentationContext.isPresented = false
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        parentRouter.dismissUpTo(routeMatchesId: id)
+                        parentRouter.dismissUpTo(routeMatchingId: id)
                     }
                     return
                 }
@@ -244,7 +249,7 @@ open class MacRouter: Router {
                 if let (parentRouter, presentationContext) = parentRouter {
                     presentationContext.isPresented = false
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        parentRouter.dismissUpTo(routeMatchesId: id)
+                        parentRouter.dismissUpTo(routeMatchingId: id)
                     }
                     return
                 }
@@ -297,7 +302,7 @@ open class MacRouter: Router {
     
     func adjustView<Input: View, Dependency: ObservableObject>(_ view: Input, environmentObject: Dependency, routeViewId: RouteViewIdentifier) -> some View {
         view
-            .environment(\.router, self)
+            .environment(\.router, WeakRouter(_router: self))
             .environmentObject(VoidObservableObject())
             .environmentObject(environmentObject)
             .environment(\.routeViewId, routeViewId)
@@ -305,9 +310,14 @@ open class MacRouter: Router {
     }
     
     @discardableResult
-    fileprivate func registerRouteHost(view: AnyView, byRouteViewId routeViewId: RouteViewIdentifier) -> RouteHost {
+    fileprivate func registerRouteHost(view: AnyView, byRouteViewId routeViewId: RouteViewIdentifier, replaceParent: Bool = false) -> RouteHost {
         let routeHost = RouteHost(rootView: view)
         routeHosts[routeViewId] = routeHost
+        
+        if !stack.isEmpty, replaceParent {
+            stack.removeLast()
+        }
+        
         stack.append(routeHost)
         
         return routeHost

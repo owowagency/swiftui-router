@@ -1,7 +1,7 @@
 import SwiftUI
 
 @available(iOS 13, macOS 10.15, *)
-public struct MasterDetailRouter<MasterView: View, DetailRouter: Router, DetailView: View>: View {
+public struct MasterDetailRouter<MasterView: View, DetailRouter: Router & AnyObject, DetailView: View>: View {
     let masterView: MasterView
     @State var detailRouter: DetailRouter
     let makeDetailView: (DetailRouter) -> DetailView
@@ -16,7 +16,7 @@ public struct MasterDetailRouter<MasterView: View, DetailRouter: Router, DetailV
         #if os(macOS)
         HSplitView {
             masterView
-                .environment(\.router, detailRouter)
+                .environment(\.router, WeakRouter(_router: detailRouter))
                 .environmentObject(VoidObservableObject())
             
             makeDetailView(detailRouter)
@@ -24,7 +24,7 @@ public struct MasterDetailRouter<MasterView: View, DetailRouter: Router, DetailV
         #else
         HStack(spacing: 0) {
             masterView
-                .environment(\.router, detailRouter)
+                .environment(\.router, WeakRouter(_router: detailRouter))
                 .environmentObject(VoidObservableObject())
             
             Divider()

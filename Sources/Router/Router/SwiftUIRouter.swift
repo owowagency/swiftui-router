@@ -18,6 +18,7 @@ fileprivate final class RouteHost: Hashable {
     // MARK: State
     
     let rootView: AnyView
+    let id: RouteViewIdentifier
     
     func root<Sibling: View>(sibling: Sibling) -> some View {
         self.rootView
@@ -28,8 +29,9 @@ fileprivate final class RouteHost: Hashable {
     
     // MARK: Init
     
-    init(rootView: AnyView, presenterViewModel: SwiftUIPresenterViewModel) {
+    init(rootView: AnyView, id: RouteViewIdentifier, presenterViewModel: SwiftUIPresenterViewModel) {
         self.rootView = rootView
+        self.id = id
         self.presenterViewModel = presenterViewModel
     }
     
@@ -55,29 +57,31 @@ fileprivate struct PresenterView<WrappedView: View>: View {
     @State var nestedView: AnyView?
     @ObservedObject var viewModel: SwiftUIPresenterViewModel
     
-    var body: some View {
-        // Make sure SwiftUI registers the EnvironmentObject dependency for observation
-        wrappedView
-            .id(viewModel.isPresented)
-            .background(Group {
-                if let nestedView = self.nestedView {
-                    NavigationLink(
-                        destination: nestedView,
-                        isActive: .init(
-                            get: { self.nestedView != nil },
-                            set: { newValue in
-                                if !newValue {
-                                    self.nestedView = nil
-                                }
-                            }),
-                        label: {
-                            EmptyView()
-                        }
-                    )
+    @ViewBuilder var body: some View {
+        if viewModel.isPresented {
+            // Make sure SwiftUI registers the EnvironmentObject dependency for observation
+            wrappedView
+                .id(viewModel.isPresented)
+                .background(Group {
+                    if let nestedView = self.nestedView {
+                        NavigationLink(
+                            destination: nestedView,
+                            isActive: .init(
+                                get: { self.nestedView != nil },
+                                set: { newValue in
+                                    if !newValue {
+                                        self.nestedView = nil
+                                    }
+                                }),
+                            label: {
+                                EmptyView()
+                            }
+                        )
+                    }
+                }).onAppear {
+                    viewModel.nestedView = $nestedView
                 }
-            }).onAppear {
-                viewModel.nestedView = $nestedView
-            }
+        }
     }
 }
 
@@ -98,7 +102,7 @@ open class SwiftUIRouter: Router {
         _ environmentObject: Root.EnvironmentObjectDependency,
         parent: (Router, PresentationContext)? = nil
     ) where Root: EnvironmentDependentRoute {
-        self.hostingController =  HostingController(rootView: AnyView(EmptyView()))
+        self.hostingController = HostingController(rootView: AnyView(EmptyView()))
         self.parentRouter = parent
         replaceRoot(with: root, environmentObject)
     }
@@ -106,7 +110,7 @@ open class SwiftUIRouter: Router {
     public init<Root>(
         root: Root
     ) where Root: Route {
-        self.hostingController =  HostingController(rootView: AnyView(EmptyView()))
+        self.hostingController = HostingController(rootView: AnyView(EmptyView()))
         self.parentRouter = nil
         replaceRoot(with: root)
     }
@@ -118,9 +122,12 @@ open class SwiftUIRouter: Router {
         _ environmentObject: Target.EnvironmentObjectDependency,
         using presenter: ThePresenter
     ) -> RouteViewIdentifier where Target : EnvironmentDependentRoute, ThePresenter : Presenter {
-        self.stack.removeAll(keepingCapacity: true)
-        self.routeHosts.removeAll(keepingCapacity: true)
-        self.hostingController.rootView = AnyView(EmptyView())
+        for item in stack {
+            item.presenterViewModel.isPresented = false
+        }
+        
+        self.stack.removeAll()
+        self.routeHosts.removeAll()
         
         return navigate(
             to: target,
@@ -178,7 +185,18 @@ open class SwiftUIRouter: Router {
             )
             registerRouteHost(view: view, presenterViewModel: presenterViewModel, byRouteViewId: targetRouteViewId)
             hostingController.rootView = view
-        case .replaceParent, .sibling:
+        case .replaceParent:
+            let view = makeView(
+                for: target,
+                environmentObject: environmentObject,
+                presenterViewModel: presenterViewModel,
+                using: presenter,
+                routeViewId: targetRouteViewId
+            )
+            
+            registerRouteHost(view: view, presenterViewModel: presenterViewModel, byRouteViewId: targetRouteViewId)
+            hostingController.rootView = view
+        case .sibling:
             let host: RouteHost
             
             if let source = source, source != .none {
@@ -254,18 +272,12 @@ open class SwiftUIRouter: Router {
             case .normal:
                 fatalError("Internal inconsistency")
             }
-            
-            presenterViewModel.$isPresented
-                .first { $0 == false }
-                .sink { [weak hostingController] _ in
-                    hostingController?.rootView = AnyView(presenter.body(with: presentationContext)) }
-                .store(in: &cancellables)
         }
         
         return targetRouteViewId
     }
     
-    public func dismissUpTo(routeMatchesId id: RouteViewIdentifier) {
+    public func dismissUpTo(routeMatchingId id: RouteViewIdentifier) {
         while !routeHosts.isEmpty, let lastRouteHost = stack.last {
             guard
                 let route = routeHosts.first(where: { $0.value == lastRouteHost })
@@ -273,7 +285,7 @@ open class SwiftUIRouter: Router {
                 if let (parentRouter, presentationContext) = parentRouter {
                     presentationContext.isPresented = false
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        parentRouter.dismissUpTo(routeMatchesId: id)
+                        parentRouter.dismissUpTo(routeMatchingId: id)
                     }
                     return
                 }
@@ -284,8 +296,8 @@ open class SwiftUIRouter: Router {
             
             if id == route.key {
                 // Found the route we're looking for, but this is up to not including
-                if let newRoot = stack.last?.rootView {
-                    hostingController.rootView = newRoot
+                if let newRoot = stack.last {
+                    hostingController.rootView = newRoot.rootView
                 }
                 return
             }
@@ -303,7 +315,7 @@ open class SwiftUIRouter: Router {
                 if let (parentRouter, presentationContext) = parentRouter {
                     presentationContext.isPresented = false
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        parentRouter.dismissUpTo(routeMatchesId: id)
+                        parentRouter.dismissUpTo(routeMatchingId: id)
                     }
                     return
                 }
@@ -317,8 +329,8 @@ open class SwiftUIRouter: Router {
             
             if id == route.key {
                 // Found the route we're looking for, and this is up to AND including
-                if let newRoot = stack.last?.rootView {
-                    hostingController.rootView = newRoot
+                if let newRoot = stack.last {
+                    hostingController.rootView = newRoot.rootView
                 }
                 return
             }
@@ -363,7 +375,7 @@ open class SwiftUIRouter: Router {
     func adjustView<Input: View, Dependency: ObservableObject>(_ view: Input, presenterViewModel: SwiftUIPresenterViewModel, environmentObject: Dependency, routeViewId: RouteViewIdentifier) -> some View {
         return PresenterView(
             wrappedView: view
-                .environment(\.router, self)
+                .environment(\.router, WeakRouter(_router: self))
                 .environmentObject(VoidObservableObject())
                 .environmentObject(environmentObject)
                 .environment(\.routeViewId, routeViewId)
@@ -374,8 +386,9 @@ open class SwiftUIRouter: Router {
     
     @discardableResult
     fileprivate func registerRouteHost(view: AnyView, presenterViewModel: SwiftUIPresenterViewModel, byRouteViewId routeViewId: RouteViewIdentifier) -> RouteHost {
-        let routeHost = RouteHost(rootView: view, presenterViewModel: presenterViewModel)
+        let routeHost = RouteHost(rootView: view, id: routeViewId, presenterViewModel: presenterViewModel)
         routeHosts[routeViewId] = routeHost
+        
         stack.append(routeHost)
         
         return routeHost

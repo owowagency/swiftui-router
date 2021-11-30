@@ -46,7 +46,7 @@ public protocol Router {
     /// Dismiss up to, but not including, the route matching `id`.
     ///
     /// The actual dismissal behavior can differ between router implementations.
-    func dismissUpTo(routeMatchesId id: RouteViewIdentifier)
+    func dismissUpTo(routeMatchingId id: RouteViewIdentifier)
     
     /// Dismiss all routes up to, and including, the route matching `id`.
     ///
